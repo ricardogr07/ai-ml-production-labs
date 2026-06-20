@@ -1,0 +1,37 @@
+name: Docker Build
+
+on:
+  pull_request:
+    paths:
+      - "labs/**"
+      - "shared/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/docker-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    name: Build Selected Lab Images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lab:
+          - 01-fastapi-azure-ml-service
+          - 05-ollama-local-llm-api
+          - 10-mlflow-classifier-api
+          - 13-fastapi-opentelemetry-lab
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            -f labs/${{ matrix.lab }}/Dockerfile \
+            -t ${{ matrix.lab }}:ci \
+            .
