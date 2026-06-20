@@ -24,6 +24,10 @@ dev = [
   "pre-commit>=3.7",
   "build>=1.2",
   "httpx>=0.27",
+  # workspace runtime deps — needed so tox envs can import from shared/src
+  "pydantic>=2.7",
+  "pydantic-settings>=2.2",
+  "structlog>=24.1",
 ]
 
 [tool.uv.workspace]
@@ -53,6 +57,9 @@ select = [
 ignore = [
   "B008",  # FastAPI dependency injection may call functions in defaults.
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["production_labs_shared"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -86,9 +93,6 @@ fail_under = 60  # raised per-lab as each lab reaches completion
 
 [tool.pyrefly]
 python_version = "3.12"
-errors_to_ignore = []
-include = ["shared/src", "labs"]
-exclude = ["labs/**/notebooks"]
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
