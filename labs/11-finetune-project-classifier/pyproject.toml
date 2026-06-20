@@ -1,0 +1,24 @@
+[project]
+name = "finetune-project-classifier"
+version = "0.1.0"
+description = "Fine-tune a small HuggingFace model for project type classification with before/after metrics."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "production-labs-shared",
+  "transformers>=4.40",
+  "datasets>=2.19",
+  "torch>=2.3",
+  "scikit-learn>=1.5",
+  "pydantic>=2.7",
+]
+
+[tool.uv.sources]
+production-labs-shared = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/finetune_project_classifier"]
