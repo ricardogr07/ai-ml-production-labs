@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+.eggs/
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Testing
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+.hypothesis/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Linting
+.ruff_cache/
+
+# Environment files — examples are committed, real .env is not
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code and local agent config
+.claude/
+.localagent/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/
