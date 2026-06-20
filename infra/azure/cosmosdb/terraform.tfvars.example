@@ -1,0 +1,6 @@
+resource_group_name = "rg-ai-ml-production-labs-dev"
+location            = "eastus"
+account_name        = "cosmos-ai-ml-production-labs-dev"
+database_name       = "ai_ml_labs"
+container_name      = "experiments"
+partition_key_path  = "/experiment_id"

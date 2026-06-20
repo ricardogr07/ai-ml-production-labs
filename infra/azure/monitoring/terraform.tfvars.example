@@ -1,0 +1,4 @@
+resource_group_name          = "rg-ai-ml-production-labs-dev"
+location                     = "eastus"
+log_analytics_workspace_name = "log-ai-ml-production-labs-dev"
+app_insights_name            = "appi-ai-ml-production-labs-dev"
