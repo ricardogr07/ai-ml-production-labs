@@ -1,0 +1,6 @@
+resource_group_name          = "rg-ai-ml-production-labs-dev"
+location                     = "eastus"
+container_app_name           = "ca-fastapi-azure-ml-service-dev"
+container_image              = "acraimlprodlabsdev.azurecr.io/fastapi-azure-ml-service:latest"
+environment_name             = "cae-ai-ml-production-labs-dev"
+log_analytics_workspace_name = "log-ai-ml-production-labs-dev"

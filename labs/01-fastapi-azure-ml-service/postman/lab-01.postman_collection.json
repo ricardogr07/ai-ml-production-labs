@@ -1,0 +1,146 @@
+{
+  "info": {
+    "name": "Lab 01: FastAPI Azure ML Service",
+    "description": "Collection for testing the Lab 01 FastAPI prediction service locally.\n\nPrerequisite: the service must be running at http://localhost:8000.\n\nQuick start:\n  docker compose up -d   (from labs/01-fastapi-azure-ml-service/)\n  # or\n  uv run --package fastapi-azure-ml-service uvicorn fastapi_azure_ml_service.app:app --reload",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Returns service liveness. Expects 200 with status: \"ok\"."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"status\": \"ok\",\n  \"service\": \"fastapi-azure-ml-service\",\n  \"version\": \"0.1.0\",\n  \"timestamp_utc\": \"2026-06-21T00:00:00Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Predict: incident",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"The deployment failed with an error.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": ["{{base_url}}"],
+          "path": ["predict"]
+        },
+        "description": "Text containing incident keywords. Expects label: \"incident\", confidence: 0.85."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"label\": \"incident\",\n  \"confidence\": 0.85,\n  \"model_version\": \"rules-v0.1.0\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Predict: deployment",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Rolling out the new release to production.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": ["{{base_url}}"],
+          "path": ["predict"]
+        },
+        "description": "Text containing deployment keywords. Expects label: \"deployment\", confidence: 0.75."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"label\": \"deployment\",\n  \"confidence\": 0.75,\n  \"model_version\": \"rules-v0.1.0\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Predict: general",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Routine status update from the team.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": ["{{base_url}}"],
+          "path": ["predict"]
+        },
+        "description": "Text with no special keywords. Expects label: \"general\", confidence: 0.65."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"label\": \"general\",\n  \"confidence\": 0.65,\n  \"model_version\": \"rules-v0.1.0\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Predict: validation error (empty text)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": ["{{base_url}}"],
+          "path": ["predict"]
+        },
+        "description": "Empty text violates the min_length=1 constraint. Expects 422 Unprocessable Entity."
+      },
+      "response": [
+        {
+          "name": "422 Unprocessable Entity",
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"detail\": [\n    {\n      \"type\": \"string_too_short\",\n      \"loc\": [\"body\", \"text\"],\n      \"msg\": \"String should have at least 1 character\"\n    }\n  ]\n}"
+        }
+      ]
+    }
+  ]
+}
