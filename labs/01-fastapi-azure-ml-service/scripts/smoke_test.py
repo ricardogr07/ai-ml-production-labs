@@ -3,15 +3,28 @@
 
 from __future__ import annotations
 
+import argparse
+import os
 import sys
 
 import httpx
 
-BASE_URL = "http://localhost:8000"
+DEFAULT_BASE_URL = "http://localhost:8000"
 
 
 def main() -> int:
-    client = httpx.Client(base_url=BASE_URL, timeout=10)
+    parser = argparse.ArgumentParser(description="Smoke test the FastAPI ML service.")
+    parser.add_argument(
+        "base_url",
+        nargs="?",
+        default=os.environ.get("BASE_URL", DEFAULT_BASE_URL),
+        help="Base URL of the service (default: $BASE_URL or http://localhost:8000)",
+    )
+    args = parser.parse_args()
+    base_url = args.base_url.rstrip("/")
+
+    print(f"Target: {base_url}\n")
+    client = httpx.Client(base_url=base_url, timeout=15)
 
     print("GET /health ...", end=" ")
     r = client.get("/health")
