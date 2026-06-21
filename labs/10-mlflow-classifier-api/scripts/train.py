@@ -16,12 +16,14 @@ LABELS = ["low", "medium", "high", "critical"]
 
 def generate_synthetic_data(n: int = 500) -> pd.DataFrame:
     rng = np.random.default_rng(42)
-    data = pd.DataFrame({
-        "error_count": rng.integers(0, 100, n),
-        "latency_p95_ms": rng.uniform(10, 5000, n),
-        "failed_jobs": rng.integers(0, 20, n),
-        "deployment_recent": rng.choice([0, 1], n),
-    })
+    data = pd.DataFrame(
+        {
+            "error_count": rng.integers(0, 100, n),
+            "latency_p95_ms": rng.uniform(10, 5000, n),
+            "failed_jobs": rng.integers(0, 20, n),
+            "deployment_recent": rng.choice([0, 1], n),
+        }
+    )
     data["severity"] = pd.cut(
         data["error_count"] + data["failed_jobs"] * 3,
         bins=[-1, 10, 30, 60, 200],

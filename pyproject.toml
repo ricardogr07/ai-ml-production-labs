@@ -68,7 +68,7 @@ line-ending = "auto"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra --strict-markers --strict-config"
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 testpaths = ["shared/tests", "labs"]
 pythonpath = ["shared/src"]
 markers = [
