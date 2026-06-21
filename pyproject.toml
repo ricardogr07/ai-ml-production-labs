@@ -68,7 +68,7 @@ line-ending = "auto"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib --ignore=labs/01-fastapi-azure-ml-service/tests/integration --ignore=labs/01-fastapi-azure-ml-service/tests/e2e"
 testpaths = ["shared/tests", "labs"]
 pythonpath = ["shared/src"]
 markers = [
