@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import pytest
-
-from rag_retrieval_strategy_lab.metrics import recall_at_k, mean_reciprocal_rank
+from rag_retrieval_strategy_lab.metrics import mean_reciprocal_rank, recall_at_k
 from rag_retrieval_strategy_lab.strategies import RetrievalResult
 
 

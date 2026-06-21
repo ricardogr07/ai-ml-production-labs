@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from portfolio_ai_production_capstone.schemas import AnalyzeRequest, AnalyzeResponse
+from pydantic import ValidationError
 
 
 @pytest.mark.unit

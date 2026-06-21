@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from ml_drift_monitoring_lab.drift import detect_drift
 
 

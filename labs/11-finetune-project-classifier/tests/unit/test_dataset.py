@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import pytest
-
-from finetune_project_classifier.dataset import LABELS, LABEL_TO_ID, ID_TO_LABEL, SAMPLES
+from finetune_project_classifier.dataset import ID_TO_LABEL, LABEL_TO_ID, LABELS, SAMPLES
 
 
 @pytest.mark.unit

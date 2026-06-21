@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from cosmosdb_llm_eval_store.schemas import Experiment, EvaluationScore, ModelResponse, PromptRun
+from cosmosdb_llm_eval_store.schemas import EvaluationScore, Experiment, ModelResponse, PromptRun
 
 
 class EvalStoreRepository(ABC):

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from cosmosdb_vector_memory_lab.memory import InMemoryVectorStore
 from cosmosdb_vector_memory_lab.schemas import Document
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from azure_functions_text_classifier.classifier import classify_text
 
 

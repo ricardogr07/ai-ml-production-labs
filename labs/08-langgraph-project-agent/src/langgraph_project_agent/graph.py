@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
 from langgraph_project_agent.nodes import (
     classify_project_type,

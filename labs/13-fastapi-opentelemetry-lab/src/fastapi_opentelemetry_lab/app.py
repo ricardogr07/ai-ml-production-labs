@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import uuid
+from collections.abc import Callable
 
 from fastapi import FastAPI, Request, Response
 from opentelemetry import metrics, trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
+from fastapi_opentelemetry_lab.telemetry import configure_telemetry
 from production_labs_shared.health import HealthResponse
 from production_labs_shared.logging import configure_logging
-
-from fastapi_opentelemetry_lab.telemetry import configure_telemetry
 
 SERVICE_NAME = "fastapi-opentelemetry-lab"
 SERVICE_VERSION = "0.1.0"

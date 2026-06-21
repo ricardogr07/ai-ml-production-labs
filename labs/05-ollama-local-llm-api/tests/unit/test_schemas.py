@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from ollama_local_llm_api.schemas import SummarizeRequest
+from pydantic import ValidationError
 
 
 @pytest.mark.unit

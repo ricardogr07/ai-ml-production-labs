@@ -32,18 +32,18 @@ def generate_synthetic_data(n: int = 500) -> pd.DataFrame:
 
 def main() -> None:
     df = generate_synthetic_data()
-    X = df.drop("severity", axis=1)
+    features = df.drop("severity", axis=1)
     y = df["severity"]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(features, y, test_size=0.2, random_state=42)
 
     with mlflow.start_run():
         params = {"n_estimators": 100, "max_depth": 5, "random_state": 42}
         mlflow.log_params(params)
 
         model = RandomForestClassifier(**params)
-        model.fit(X_train, y_train)
+        model.fit(x_train, y_train)
 
-        preds = model.predict(X_test)
+        preds = model.predict(x_test)
         report = classification_report(y_test, preds, output_dict=True)
         mlflow.log_metric("accuracy", report["accuracy"])
 

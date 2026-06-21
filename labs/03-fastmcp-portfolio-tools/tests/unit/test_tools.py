@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import pytest
-
-from fastmcp_portfolio_tools.server import score_project, suggest_readme_sections, generate_portfolio_summary
+from fastmcp_portfolio_tools.server import (
+    generate_portfolio_summary,
+    score_project,
+    suggest_readme_sections,
+)
 
 
 @pytest.mark.unit

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import pytest
-
 from langgraph_project_agent.nodes import (
     classify_project_type,
-    score_against_portfolio_thesis,
-    identify_missing_artifacts,
     return_scorecard,
+    score_against_portfolio_thesis,
 )
 from langgraph_project_agent.state import ProjectState
 

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from mlflow_classifier_api.schemas import IncidentFeatures, SeverityResponse
+from pydantic import ValidationError
 
 
 @pytest.mark.unit
@@ -22,7 +21,11 @@ def test_incident_features_valid() -> None:
 def test_incident_features_rejects_negative_error_count() -> None:
     with pytest.raises(ValidationError):
         IncidentFeatures(
-            service_name="svc", error_count=-1, latency_p95_ms=100.0, failed_jobs=0, deployment_recent=False
+            service_name="svc",
+            error_count=-1,
+            latency_p95_ms=100.0,
+            failed_jobs=0,
+            deployment_recent=False,
         )
 
 

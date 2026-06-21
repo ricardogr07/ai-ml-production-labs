@@ -10,15 +10,17 @@ mcp = FastMCP("portfolio-tools")
 @mcp.tool()
 def score_project(project_description: str) -> dict[str, object]:
     """Score a project description against the portfolio thesis criteria."""
+    desc = project_description.lower()
     criteria = {
-        "has_api": any(kw in project_description.lower() for kw in ("api", "fastapi", "endpoint")),
-        "has_tests": any(kw in project_description.lower() for kw in ("test", "pytest", "unit")),
-        "has_cloud": any(kw in project_description.lower() for kw in ("azure", "aws", "gcp", "cloud")),
-        "has_ai_ml": any(kw in project_description.lower() for kw in ("ml", "ai", "model", "llm", "rag")),
-        "has_docker": "docker" in project_description.lower(),
+        "has_api": any(kw in desc for kw in ("api", "fastapi", "endpoint")),
+        "has_tests": any(kw in desc for kw in ("test", "pytest", "unit")),
+        "has_cloud": any(kw in desc for kw in ("azure", "aws", "gcp", "cloud")),
+        "has_ai_ml": any(kw in desc for kw in ("ml", "ai", "model", "llm", "rag")),
+        "has_docker": "docker" in desc,
     }
     score = sum(criteria.values()) / len(criteria)
-    return {"score": round(score, 2), "criteria": criteria, "recommendation": "strong" if score >= 0.6 else "needs work"}
+    recommendation = "strong" if score >= 0.6 else "needs work"
+    return {"score": round(score, 2), "criteria": criteria, "recommendation": recommendation}
 
 
 @mcp.tool()

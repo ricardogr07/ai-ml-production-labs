@@ -21,7 +21,7 @@ def naive_search(
     import math
 
     def cosine(a: list[float], b: list[float]) -> float:
-        dot = sum(x * y for x, y in zip(a, b))
+        dot = sum(x * y for x, y in zip(a, b, strict=True))
         norm = math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(x * x for x in b))
         return dot / norm if norm else 0.0
 

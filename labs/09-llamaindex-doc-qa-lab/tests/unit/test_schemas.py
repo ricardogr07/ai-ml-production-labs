@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from llamaindex_doc_qa_lab.schemas import QueryRequest, QueryResponse, SourceChunk
+from pydantic import ValidationError
 
 
 @pytest.mark.unit

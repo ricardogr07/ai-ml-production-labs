@@ -5,11 +5,10 @@ import time
 import httpx
 from fastapi import FastAPI, HTTPException
 
-from production_labs_shared.health import HealthResponse
-from production_labs_shared.logging import configure_logging
-
 from ollama_local_llm_api.ollama_client import OllamaClient
 from ollama_local_llm_api.schemas import SummarizeRequest, SummarizeResponse
+from production_labs_shared.health import HealthResponse
+from production_labs_shared.logging import configure_logging
 
 SERVICE_NAME = "ollama-local-llm-api"
 SERVICE_VERSION = "0.1.0"
@@ -32,9 +31,11 @@ async def summarize(request: SummarizeRequest) -> SummarizeResponse:
         summary = await _client.generate(
             model=request.model, prompt=prompt, max_tokens=request.max_tokens
         )
-    except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="Ollama not reachable — is it running locally?")
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Ollama request timed out.")
+    except httpx.ConnectError as err:
+        raise HTTPException(
+            status_code=503, detail="Ollama not reachable; is it running locally?"
+        ) from err
+    except httpx.TimeoutException as err:
+        raise HTTPException(status_code=504, detail="Ollama request timed out.") from err
     latency_ms = round((time.perf_counter() - start) * 1000, 2)
     return SummarizeResponse(summary=summary, model=request.model, latency_ms=latency_ms)

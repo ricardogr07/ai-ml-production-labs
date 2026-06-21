@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-
 from fastapi_opentelemetry_lab.app import app
 
 
