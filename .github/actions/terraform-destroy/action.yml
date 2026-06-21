@@ -1,0 +1,36 @@
+name: Terraform destroy
+description: Initialises and destroys a Terraform module, skipping state refresh to avoid blocked API calls
+
+inputs:
+  working_dir:
+    description: Path to the Terraform module directory
+    required: true
+  azure_client_id:
+    description: Azure managed identity client ID for OIDC login
+    required: true
+  azure_tenant_id:
+    description: Azure tenant ID
+    required: true
+  azure_subscription_id:
+    description: Azure subscription ID
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Azure login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.azure_client_id }}
+        tenant-id: ${{ inputs.azure_tenant_id }}
+        subscription-id: ${{ inputs.azure_subscription_id }}
+
+    - name: Terraform init
+      shell: bash
+      working-directory: ${{ inputs.working_dir }}
+      run: terraform init
+
+    - name: Terraform destroy
+      shell: bash
+      working-directory: ${{ inputs.working_dir }}
+      run: terraform destroy -refresh=false -auto-approve

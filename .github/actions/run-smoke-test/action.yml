@@ -1,0 +1,43 @@
+name: Run smoke test
+description: Runs the lab smoke test script against a given base URL
+
+inputs:
+  lab:
+    description: Lab directory name (e.g. 01-fastapi-azure-ml-service)
+    required: true
+  base_url:
+    description: Base URL of the running service (e.g. https://ca-xxx.azurecontainerapps.io)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: .python-version
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync --frozen --all-packages
+
+    - name: Derive package name from lab directory
+      id: pkg
+      shell: bash
+      run: |
+        # Strip leading NN- prefix and convert hyphens to the package name
+        # e.g. 01-fastapi-azure-ml-service -> fastapi-azure-ml-service
+        PKG=$(echo "${{ inputs.lab }}" | sed 's/^[0-9]*-//')
+        echo "name=${PKG}" >> "$GITHUB_OUTPUT"
+
+    - name: Run smoke test
+      shell: bash
+      run: |
+        uv run --package "${{ steps.pkg.outputs.name }}" \
+          python "labs/${{ inputs.lab }}/scripts/smoke_test.py" \
+          "${{ inputs.base_url }}"

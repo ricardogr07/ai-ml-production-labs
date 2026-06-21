@@ -1,0 +1,49 @@
+name: Terraform apply
+description: Initialises and applies a Terraform module, outputting the fqdn if present
+
+inputs:
+  working_dir:
+    description: Path to the Terraform module directory
+    required: true
+  azure_client_id:
+    description: Azure managed identity client ID for OIDC login
+    required: true
+  azure_tenant_id:
+    description: Azure tenant ID
+    required: true
+  azure_subscription_id:
+    description: Azure subscription ID
+    required: true
+
+outputs:
+  fqdn:
+    description: Container App FQDN (empty if not present in outputs)
+    value: ${{ steps.fqdn.outputs.fqdn }}
+
+runs:
+  using: composite
+  steps:
+    - name: Azure login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.azure_client_id }}
+        tenant-id: ${{ inputs.azure_tenant_id }}
+        subscription-id: ${{ inputs.azure_subscription_id }}
+
+    - name: Terraform init
+      shell: bash
+      working-directory: ${{ inputs.working_dir }}
+      run: terraform init
+
+    - name: Terraform apply
+      shell: bash
+      working-directory: ${{ inputs.working_dir }}
+      run: terraform apply -auto-approve
+
+    - name: Capture FQDN output
+      id: fqdn
+      shell: bash
+      working-directory: ${{ inputs.working_dir }}
+      run: |
+        FQDN=$(terraform output -raw fqdn 2>/dev/null || echo "")
+        echo "fqdn=${FQDN}" >> "$GITHUB_OUTPUT"
