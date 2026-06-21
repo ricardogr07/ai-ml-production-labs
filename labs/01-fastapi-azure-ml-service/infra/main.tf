@@ -35,28 +35,44 @@ variable "environment_name" {
   default = "cae-ai-ml-production-labs-dev"
 }
 
-variable "log_analytics_workspace_name" {
-  type    = string
-  default = "log-ai-ml-production-labs-dev"
+variable "ghcr_username" {
+  type        = string
+  description = "GitHub username for GHCR pull authentication."
 }
 
-data "azurerm_log_analytics_workspace" "this" {
-  name                = var.log_analytics_workspace_name
+variable "ghcr_pat" {
+  type        = string
+  sensitive   = true
+  description = "GitHub PAT with read:packages scope for GHCR pull."
+}
+
+data "azurerm_container_app_environment" "this" {
+  name                = var.environment_name
   resource_group_name = var.resource_group_name
-}
-
-resource "azurerm_container_app_environment" "this" {
-  name                       = var.environment_name
-  location                   = var.location
-  resource_group_name        = var.resource_group_name
-  log_analytics_workspace_id = data.azurerm_log_analytics_workspace.this.id
 }
 
 resource "azurerm_container_app" "this" {
   name                         = var.container_app_name
-  container_app_environment_id = azurerm_container_app_environment.this.id
+  container_app_environment_id = data.azurerm_container_app_environment.this.id
   resource_group_name          = var.resource_group_name
   revision_mode                = "Single"
+
+  tags = {
+    lab         = "01"
+    environment = "dev"
+    project     = "ai-ml-production-labs"
+  }
+
+  registry {
+    server               = "ghcr.io"
+    username             = var.ghcr_username
+    password_secret_name = "ghcr-pat"
+  }
+
+  secret {
+    name  = "ghcr-pat"
+    value = var.ghcr_pat
+  }
 
   ingress {
     external_enabled = true
