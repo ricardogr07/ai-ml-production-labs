@@ -36,7 +36,7 @@ def detect_drift(
                 feature=feature,
                 ks_statistic=round(float(stat), 4),
                 p_value=round(float(p_value), 4),
-                drift_detected=p_value < p_threshold,
+                drift_detected=bool(p_value < p_threshold),
                 reference_mean=round(float(ref_vals.mean()), 4),
                 current_mean=round(float(cur_vals.mean()), 4),
             )
