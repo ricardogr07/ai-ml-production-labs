@@ -9,6 +9,11 @@
       "key": "base_url",
       "value": "http://localhost:8000",
       "type": "string"
+    },
+    {
+      "key": "base_url_azure",
+      "value": "https://<fqdn>.azurecontainerapps.io",
+      "type": "string"
     }
   ],
   "item": [
