@@ -12,7 +12,7 @@
     },
     {
       "key": "base_url_azure",
-      "value": "https://<fqdn>.azurecontainerapps.io",
+      "value": "https://ca-fastapi-azure-ml-service-dev.lemonbay-620faa33.eastus.azurecontainerapps.io",
       "type": "string"
     }
   ],
