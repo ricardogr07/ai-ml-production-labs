@@ -13,13 +13,14 @@ on:
           - 10-mlflow-classifier-api
           - 13-fastapi-opentelemetry-lab
       image_name:
-        description: "Container image name"
+        description: "Container image name (used as the GHCR image and Container App name)"
         required: true
         type: string
 
 permissions:
   contents: read
   id-token: write
+  packages: write
 
 jobs:
   deploy:
@@ -41,6 +42,9 @@ jobs:
         with:
           appSourcePath: .
           dockerfilePath: labs/${{ inputs.lab }}/Dockerfile
-          acrName: ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}
+          registryUrl: ghcr.io
+          registryUsername: ${{ github.actor }}
+          registryPassword: ${{ secrets.GHCR_PAT }}
+          imageToBuild: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ github.sha }}
           containerAppName: ${{ inputs.image_name }}
           resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
