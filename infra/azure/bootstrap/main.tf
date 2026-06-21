@@ -10,6 +10,7 @@ terraform {
 
 provider "azurerm" {
   features {}
+  skip_provider_registration = true
 }
 
 variable "resource_group_name" {
@@ -70,11 +71,10 @@ resource "azurerm_application_insights" "this" {
 }
 
 resource "azurerm_container_app_environment" "this" {
-  name                       = var.environment_name
-  location                   = azurerm_resource_group.this.location
-  resource_group_name        = azurerm_resource_group.this.name
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.this.id
-  tags                       = local.shared_tags
+  name                = var.environment_name
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+  tags                = local.shared_tags
 }
 
 output "resource_group_name" {
