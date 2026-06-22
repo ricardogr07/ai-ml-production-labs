@@ -1,0 +1,9 @@
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: labs/02-azure-functions-text-classifier/Dockerfile
+    ports:
+      - "7071:80"
+    env_file:
+      - .env.example
