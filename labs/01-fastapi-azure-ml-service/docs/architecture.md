@@ -210,7 +210,7 @@ uv run pytest labs/01-fastapi-azure-ml-service/tests/unit -v
 uv run pytest labs/01-fastapi-azure-ml-service/tests/integration -v
 
 # Full suite via tox
-tox -e lint,type,py312,security,audit
+uv run tox -e lint,type,py312,security,audit
 ```
 
 E2E tests (`tests/e2e/`) target a live deployment URL. They are skipped automatically in CI when `LAB01_BASE_URL` is not set. To run them against the Docker container:
@@ -223,35 +223,41 @@ LAB01_BASE_URL=http://localhost:8000 uv run pytest labs/01-fastapi-azure-ml-serv
 
 ## CI flow
 
+Every push to `master` and every pull request runs two jobs in parallel:
+
 ```mermaid
 flowchart LR
-    A[git push] --> B[tox: lint]
-    A --> C[tox: type]
-    A --> D[tox: py312]
-    A --> E[tox: security]
-    A --> F[tox: audit]
-    D --> G[pytest: unit + integration\ne2e self-skips]
-    B --> H{all green?}
-    C --> H
-    D --> H
-    E --> H
-    F --> H
-    H -->|yes| I[docker-build workflow]
+    A[git push / PR] --> B[docker-build\nbuilds Dockerfile, no push]
+    A --> C[quality gates]
+    C --> D[tox: lint]
+    C --> E[tox: type]
+    C --> F[tox: py312\npytest unit + integration]
+    C --> G[tox: security]
+    C --> H[tox: audit]
 ```
+
+E2E tests self-skip in CI because `LAB01_BASE_URL` is not set. Use the integration pipeline (below) to run them against a live Azure deployment.
 
 ---
 
-## Azure deployment (future)
+## Azure deployment
 
-`infra/main.tf` provisions the Container App Environment, Container App, and Log Analytics workspace using Terraform and the `azurerm` provider. Active deployment (push-to-ACR and apply) is covered in a subsequent lab step.
+`infra/main.tf` provisions the Container App, reading the shared Container App Environment from the bootstrap via a data source. The Container App Environment and Log Analytics workspace are created separately by `infra/azure/bootstrap/` and are shared across all labs.
 
-To preview the plan without applying:
+The container image is pulled from GHCR. Registry credentials are passed as a Terraform-managed secret on the Container App.
 
-```bash
-cd labs/01-fastapi-azure-ml-service/infra
-cp terraform.tfvars.example terraform.tfvars  # fill in real values
-terraform init
-terraform plan
-```
+The recommended path is the integration pipeline:
+
+**Actions > Integration Test > Run workflow**
+
+| Input | Value |
+|---|---|
+| `lab` | `01-fastapi-azure-ml-service` |
+| `image_name` | `fastapi-azure-ml-service` |
+| `hold_for_validation` | `true` to pause before teardown for Postman testing |
+
+Pipeline stages: build + push to GHCR, `terraform apply`, smoke test, optional manual hold, `terraform destroy`.
+
+For a one-shot local deploy without the pipeline, see `docs/deployment.md`.
 
 Official docs: [learn.microsoft.com/azure/container-apps](https://learn.microsoft.com/azure/container-apps/)
