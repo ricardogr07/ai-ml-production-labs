@@ -14,7 +14,8 @@ provider "azurerm" {
 }
 
 variable "resource_group_name" {
-  type = string
+  type    = string
+  default = "rg-ai-ml-production-labs-dev"
 }
 
 variable "location" {
