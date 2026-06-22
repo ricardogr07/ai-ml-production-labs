@@ -29,5 +29,5 @@ def health() -> HealthResponse:
 
 @app.post("/predict", response_model=PredictResponse)
 @limiter.limit("10/minute")
-def predict(_request: Request, body: PredictRequest) -> PredictResponse:
+def predict(request: Request, body: PredictRequest) -> PredictResponse:  # noqa: ARG001
     return _service.predict(body)

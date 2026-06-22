@@ -26,9 +26,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: tox-lint
-        name: tox lint
+      - id: tox
+        name: tox quality gates
         language: system
-        entry: uv run tox -e lint
+        entry: uv run tox -e lint,type,py312,security,audit
         pass_filenames: false
         always_run: true
