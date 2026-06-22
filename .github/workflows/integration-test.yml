@@ -51,6 +51,7 @@ jobs:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
       TF_VAR_ghcr_username: ${{ github.repository_owner }}
       TF_VAR_ghcr_pat: ${{ secrets.GHCR_PAT }}
+      TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
     steps:
       - uses: actions/checkout@v4
 
@@ -100,6 +101,7 @@ jobs:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
       TF_VAR_ghcr_username: ${{ github.repository_owner }}
       TF_VAR_ghcr_pat: ${{ secrets.GHCR_PAT }}
+      TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
     steps:
       - uses: actions/checkout@v4
 
