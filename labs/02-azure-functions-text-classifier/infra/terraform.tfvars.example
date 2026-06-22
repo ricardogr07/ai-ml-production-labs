@@ -1,0 +1,5 @@
+resource_group_name            = "rg-ai-ml-production-labs-dev"
+location                       = "eastus"
+function_app_name              = "func-text-classifier-dev"
+storage_account_name           = "stfunctxtcls02dev"
+app_insights_connection_string = "<from bootstrap: cd infra/azure/bootstrap && terraform output -raw app_insights_connection_string>"
