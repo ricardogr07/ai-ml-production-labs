@@ -44,12 +44,35 @@ variable "app_insights_connection_string" {
   description = "Application Insights connection string from bootstrap output (terraform output -raw app_insights_connection_string)."
 }
 
+variable "existing_service_plan_name" {
+  type        = string
+  default     = ""
+  description = "Name of an existing Consumption App Service Plan to reuse. When set, no new plan is created. Use this when the subscription's 'Total VMs' quota in Microsoft.Web is 0."
+}
+
 locals {
   tags = {
     lab         = "02"
     environment = "dev"
     project     = "ai-ml-production-labs"
   }
+  service_plan_id = var.existing_service_plan_name != "" ? data.azurerm_service_plan.existing[0].id : azurerm_service_plan.new[0].id
+}
+
+data "azurerm_service_plan" "existing" {
+  count               = var.existing_service_plan_name != "" ? 1 : 0
+  name                = var.existing_service_plan_name
+  resource_group_name = var.resource_group_name
+}
+
+resource "azurerm_service_plan" "new" {
+  count               = var.existing_service_plan_name == "" ? 1 : 0
+  name                = "${var.function_app_name}-plan"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  os_type             = "Linux"
+  sku_name            = "Y1"
+  tags                = local.tags
 }
 
 resource "azurerm_storage_account" "this" {
@@ -61,20 +84,11 @@ resource "azurerm_storage_account" "this" {
   tags                     = local.tags
 }
 
-resource "azurerm_service_plan" "this" {
-  name                = "${var.function_app_name}-plan"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  os_type             = "Linux"
-  sku_name            = "Y1"
-  tags                = local.tags
-}
-
 resource "azurerm_linux_function_app" "this" {
   name                       = var.function_app_name
   resource_group_name        = var.resource_group_name
   location                   = var.location
-  service_plan_id            = azurerm_service_plan.this.id
+  service_plan_id            = local.service_plan_id
   storage_account_name       = azurerm_storage_account.this.name
   storage_account_access_key = azurerm_storage_account.this.primary_access_key
   tags                       = local.tags

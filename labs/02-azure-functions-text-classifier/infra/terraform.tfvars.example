@@ -3,3 +3,8 @@ location                       = "eastus"
 function_app_name              = "func-text-classifier-dev"
 storage_account_name           = "stfunctxtcls02dev"
 app_insights_connection_string = "<from bootstrap: cd infra/azure/bootstrap && terraform output -raw app_insights_connection_string>"
+
+# Optional: set to the name of an existing Consumption plan to skip creating a new one.
+# Required on subscriptions where the Microsoft.Web "Total VMs" quota is 0.
+# Leave commented out if your subscription allows creating a new plan.
+# existing_service_plan_name = "<existing-plan-name>"
