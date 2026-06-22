@@ -94,7 +94,7 @@ jobs:
   teardown:
     name: Terraform destroy
     needs: [build, deploy, smoke-test, hold]
-    if: ${{ always() && needs.smoke-test.result == 'success' }}
+    if: ${{ always() && needs.smoke-test.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped') }}
     runs-on: ubuntu-latest
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
