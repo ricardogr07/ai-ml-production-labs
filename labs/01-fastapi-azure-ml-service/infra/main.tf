@@ -72,7 +72,7 @@ resource "azurerm_container_app" "this" {
 
   secret {
     name  = "ghcr-pat"
-    value = var.ghcr_pat
+    value = var.ghcr_pat # pragma: allowlist secret
   }
 
   ingress {
