@@ -9,6 +9,20 @@ permissions:
   contents: read
 
 jobs:
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build lab Dockerfiles
+        run: |
+          for dockerfile in labs/*/Dockerfile; do
+            lab=$(dirname "$dockerfile" | xargs basename)
+            echo "=== Building $lab ==="
+            docker build -f "$dockerfile" -t "$lab:ci" .
+          done
+
   quality:
     name: Quality Gates
     runs-on: ubuntu-latest

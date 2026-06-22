@@ -53,3 +53,16 @@ def test_predict_rejects_missing_text(client: TestClient) -> None:
     response = client.post("/predict", json={})
 
     assert response.status_code == 422
+
+
+@pytest.mark.integration
+def test_predict_enforces_rate_limit(client: TestClient) -> None:
+    from fastapi_azure_ml_service.app import limiter
+
+    limiter._storage.reset()
+    for _ in range(10):
+        r = client.post("/predict", json={"text": "rate limit probe"})
+        assert r.status_code == 200
+
+    r = client.post("/predict", json={"text": "rate limit probe"})
+    assert r.status_code == 429

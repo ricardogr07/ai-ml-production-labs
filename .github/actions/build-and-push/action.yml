@@ -1,0 +1,47 @@
+name: Build and push Docker image to GHCR
+description: Builds a lab Dockerfile and pushes the image to ghcr.io
+
+inputs:
+  lab:
+    description: Lab directory name (e.g. 01-fastapi-azure-ml-service)
+    required: true
+  image_name:
+    description: Image name on GHCR (e.g. fastapi-azure-ml-service)
+    required: true
+  ghcr_username:
+    description: GitHub username for GHCR login
+    required: true
+  ghcr_pat:
+    description: GitHub PAT with write:packages scope
+    required: true
+
+outputs:
+  image_tag:
+    description: Full image reference including SHA tag
+    value: ${{ steps.meta.outputs.image_tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Log in to GHCR
+      shell: bash
+      run: echo "${{ inputs.ghcr_pat }}" | docker login ghcr.io -u "${{ inputs.ghcr_username }}" --password-stdin
+
+    - name: Set image tag
+      id: meta
+      shell: bash
+      run: |
+        IMAGE="ghcr.io/${{ inputs.ghcr_username }}/${{ inputs.image_name }}:${{ github.sha }}"
+        echo "image_tag=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+    - name: Build image
+      shell: bash
+      run: |
+        docker build \
+          -f "labs/${{ inputs.lab }}/Dockerfile" \
+          -t "${{ steps.meta.outputs.image_tag }}" \
+          .
+
+    - name: Push image
+      shell: bash
+      run: docker push "${{ steps.meta.outputs.image_tag }}"

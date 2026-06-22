@@ -1,0 +1,115 @@
+name: Integration Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      lab:
+        description: Lab to test
+        type: choice
+        options:
+          - 01-fastapi-azure-ml-service
+        default: 01-fastapi-azure-ml-service
+      image_name:
+        description: Image name on GHCR (e.g. fastapi-azure-ml-service)
+        type: string
+        default: fastapi-azure-ml-service
+      hold_for_validation:
+        description: Pause before teardown for manual Postman testing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.build.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push
+        id: build
+        uses: ./.github/actions/build-and-push
+        with:
+          lab: ${{ inputs.lab }}
+          image_name: ${{ inputs.image_name }}
+          ghcr_username: ${{ github.repository_owner }}
+          ghcr_pat: ${{ secrets.GHCR_PAT }}
+
+  deploy:
+    name: Terraform apply
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      fqdn: ${{ steps.apply.outputs.fqdn }}
+    env:
+      TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
+      TF_VAR_ghcr_username: ${{ github.repository_owner }}
+      TF_VAR_ghcr_pat: ${{ secrets.GHCR_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Apply
+        id: apply
+        uses: ./.github/actions/terraform-apply
+        with:
+          working_dir: labs/${{ inputs.lab }}/infra
+          azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+          azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+  smoke-test:
+    name: Smoke test
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run smoke test
+        uses: ./.github/actions/run-smoke-test
+        with:
+          lab: ${{ inputs.lab }}
+          base_url: https://${{ needs.deploy.outputs.fqdn }}
+
+  hold:
+    name: Hold for manual validation
+    needs: [deploy, smoke-test]
+    if: ${{ inputs.hold_for_validation == true }}
+    runs-on: ubuntu-latest
+    environment: integration-teardown
+    steps:
+      - name: Print FQDN for Postman testing
+        run: |
+          echo "Service is live at: https://${{ needs.deploy.outputs.fqdn }}"
+          echo "Approve this step in GitHub Actions to proceed with teardown."
+
+  teardown:
+    name: Terraform destroy
+    needs: [build, deploy, smoke-test, hold]
+    if: ${{ always() && needs.smoke-test.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
+      TF_VAR_ghcr_username: ${{ github.repository_owner }}
+      TF_VAR_ghcr_pat: ${{ secrets.GHCR_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Destroy
+        uses: ./.github/actions/terraform-destroy
+        with:
+          working_dir: labs/${{ inputs.lab }}/infra
+          azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+          azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
