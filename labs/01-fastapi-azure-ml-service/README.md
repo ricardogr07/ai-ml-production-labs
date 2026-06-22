@@ -10,7 +10,7 @@ A production-shaped containerized FastAPI service deployed to Azure Container Ap
 - Input: `{ "text": "..." }` (1–10,000 characters)
 - Output: `{ "label": "...", "confidence": 0.0–1.0, "model_version": "..." }`
 - Deployment target: Azure Container Apps
-- Non-goals: real ML model training, authentication, rate limiting, streaming responses
+- Non-goals: real ML model training, authentication, streaming responses
 
 ## Architecture
 
@@ -46,7 +46,7 @@ uv run --package fastapi-azure-ml-service uvicorn fastapi_azure_ml_service.app:a
 ```bash
 uv run --package fastapi-azure-ml-service pytest labs/01-fastapi-azure-ml-service/tests
 # or from repo root:
-tox -e lint,type,py312
+uv run tox -e lint,type,py312,security,audit
 ```
 
 ## Docker
