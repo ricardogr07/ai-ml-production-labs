@@ -110,18 +110,24 @@ jobs:
       - name: Assemble deployment package
         run: |
           LAB="labs/${{ inputs.lab }}"
+          DEPLOY_DIR="/tmp/func-deploy"
+          mkdir -p "$DEPLOY_DIR"
+          cp "$LAB/function_app.py" "$DEPLOY_DIR/"
+          cp "$LAB/host.json" "$DEPLOY_DIR/"
+          cp -r "$LAB/src/azure_functions_text_classifier" "$DEPLOY_DIR/azure_functions_text_classifier"
+          cp -r shared/src/production_labs_shared "$DEPLOY_DIR/production_labs_shared"
           uv export --package azure-functions-text-classifier --no-hashes --no-dev \
-            | grep -v '^-e' > "$LAB/requirements.txt"
-          cp -r "$LAB/src/azure_functions_text_classifier" "$LAB/azure_functions_text_classifier"
-          cp -r shared/src/production_labs_shared "$LAB/production_labs_shared"
+            | grep -v '^-e' > "$DEPLOY_DIR/requirements.txt"
+          uv pip install -r "$DEPLOY_DIR/requirements.txt" \
+            --target "$DEPLOY_DIR/.python_packages/lib/python3.12/site-packages"
 
       - name: Publish function app
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ needs.deploy.outputs.function_app_name }}
-          package: labs/${{ inputs.lab }}
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
+          package: /tmp/func-deploy
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false
 
   smoke-test:
     name: Smoke test
@@ -145,6 +151,7 @@ jobs:
     needs: [deploy, publish-functions, smoke-test]
     if: always() && inputs.hold_for_validation == true && needs.deploy.result == 'success' && (needs.publish-functions.result == 'success' || needs.publish-functions.result == 'skipped')
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: integration-teardown
     steps:
       - name: Print FQDN for Postman testing
@@ -155,7 +162,7 @@ jobs:
   teardown:
     name: Terraform destroy
     needs: [build, deploy, publish-functions, smoke-test, hold]
-    if: always() && needs.deploy.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped')
+    if: always() && needs.deploy.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped' || needs.hold.result == 'cancelled')
     runs-on: ubuntu-latest
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
