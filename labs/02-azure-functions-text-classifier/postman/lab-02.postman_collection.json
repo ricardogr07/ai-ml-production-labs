@@ -1,0 +1,156 @@
+{
+  "info": {
+    "name": "Lab 02: Azure Functions Text Classifier",
+    "description": "Collection for testing the Lab 02 Azure Functions text classification service.\n\nPrerequisite: the service must be running at http://localhost:7071.\n\nQuick start:\n  docker compose up -d   (from labs/02-azure-functions-text-classifier/)\n  # or\n  func start            (from the lab root, requires Azure Functions Core Tools v4)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:7071",
+      "type": "string"
+    },
+    {
+      "key": "base_url_azure",
+      "value": "https://func-text-classifier-dev.azurewebsites.net",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Classify: incident",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Service crashed in production.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/api/classify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "classify"]
+        },
+        "description": "Text containing incident keywords. Expects label: \"incident\"."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"label\": \"incident\",\n  \"confidence\": 0.85,\n  \"model_version\": \"rules-v0.1.0\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Classify: deployment",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"New release deployed to staging.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/api/classify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "classify"]
+        },
+        "description": "Text containing deployment keywords. Expects label: \"deployment\"."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"label\": \"deployment\",\n  \"confidence\": 0.75,\n  \"model_version\": \"rules-v0.1.0\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Classify: general",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Routine team update.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/api/classify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "classify"]
+        },
+        "description": "Text with no special keywords. Expects label: \"general\"."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"label\": \"general\",\n  \"confidence\": 0.65,\n  \"model_version\": \"rules-v0.1.0\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Classify: validation error (empty text)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/api/classify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "classify"]
+        },
+        "description": "Empty text violates the min_length=1 constraint. Expects 422 Unprocessable Entity."
+      },
+      "response": [
+        {
+          "name": "422 Unprocessable Entity",
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"detail\": \"1 validation error for ClassifyRequest\\ntext\\n  String should have at least 1 character\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Classify: invalid JSON",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "not valid json{{{",
+          "options": {"raw": {"language": "text"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/api/classify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "classify"]
+        },
+        "description": "Malformed JSON body. Expects 400 Bad Request with a detail field."
+      },
+      "response": [
+        {
+          "name": "400 Bad Request",
+          "status": "Bad Request",
+          "code": 400,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"detail\": \"Request body must be valid JSON\"\n}"
+        }
+      ]
+    }
+  ]
+}

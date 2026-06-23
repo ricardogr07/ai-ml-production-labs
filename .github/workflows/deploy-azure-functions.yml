@@ -39,8 +39,21 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Install workspace dependencies
+        run: uv sync --frozen --all-packages
+
+      - name: Assemble deployment package
+        run: |
+          LAB="labs/${{ inputs.lab }}"
+          uv export --package azure-functions-text-classifier --no-hashes --no-dev \
+            | grep -v '^-e' > "$LAB/requirements.txt"
+          cp -r "$LAB/src/azure_functions_text_classifier" "$LAB/azure_functions_text_classifier"
+          cp -r shared/src/production_labs_shared "$LAB/production_labs_shared"
+
       - name: Deploy function app
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
           package: labs/${{ inputs.lab }}
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true

@@ -8,6 +8,7 @@ on:
         type: choice
         options:
           - 01-fastapi-azure-ml-service
+          - 02-azure-functions-text-classifier
         default: 01-fastapi-azure-ml-service
       image_name:
         description: Image name on GHCR (e.g. fastapi-azure-ml-service)
@@ -47,6 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       fqdn: ${{ steps.apply.outputs.fqdn }}
+      function_app_name: ${{ steps.fn_name.outputs.function_app_name }}
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
       TF_VAR_ghcr_username: ${{ github.repository_owner }}
@@ -67,9 +69,65 @@ jobs:
           azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
           azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Capture function app name
+        id: fn_name
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: |
+          NAME=$(terraform output -raw function_app_name 2>/dev/null || echo "")
+          echo "function_app_name=${NAME}" >> "$GITHUB_OUTPUT"
+
+  publish-functions:
+    name: Publish function code
+    needs: deploy
+    if: startsWith(inputs.lab, '02-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install workspace dependencies
+        run: uv sync --frozen --all-packages
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Assemble deployment package
+        run: |
+          LAB="labs/${{ inputs.lab }}"
+          uv export --package azure-functions-text-classifier --no-hashes --no-dev \
+            | grep -v '^-e' > "$LAB/requirements.txt"
+          cp -r "$LAB/src/azure_functions_text_classifier" "$LAB/azure_functions_text_classifier"
+          cp -r shared/src/production_labs_shared "$LAB/production_labs_shared"
+
+      - name: Publish function app
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ needs.deploy.outputs.function_app_name }}
+          package: labs/${{ inputs.lab }}
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
+
   smoke-test:
     name: Smoke test
-    needs: deploy
+    needs: [deploy, publish-functions]
+    if: |
+      always() &&
+      needs.deploy.result == 'success' &&
+      (needs.publish-functions.result == 'success' || needs.publish-functions.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,8 +140,8 @@ jobs:
 
   hold:
     name: Hold for manual validation
-    needs: [deploy, smoke-test]
-    if: ${{ inputs.hold_for_validation == true }}
+    needs: [deploy, publish-functions, smoke-test]
+    if: ${{ inputs.hold_for_validation == true && needs.smoke-test.result == 'success' }}
     runs-on: ubuntu-latest
     environment: integration-teardown
     steps:
@@ -94,7 +152,7 @@ jobs:
 
   teardown:
     name: Terraform destroy
-    needs: [build, deploy, smoke-test, hold]
+    needs: [build, deploy, publish-functions, smoke-test, hold]
     if: ${{ always() && needs.smoke-test.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped') }}
     runs-on: ubuntu-latest
     env:
