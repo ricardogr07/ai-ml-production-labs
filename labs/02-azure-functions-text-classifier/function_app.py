@@ -1,0 +1,1 @@
+from azure_functions_text_classifier.function_app import app

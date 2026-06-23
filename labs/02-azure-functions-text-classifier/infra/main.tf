@@ -112,6 +112,11 @@ output "function_app_hostname" {
   value       = azurerm_linux_function_app.this.default_hostname
 }
 
+output "fqdn" {
+  description = "Alias for function_app_hostname, consumed by the shared terraform-apply CI action."
+  value       = azurerm_linux_function_app.this.default_hostname
+}
+
 output "function_app_name" {
   description = "Function App name, used with 'func azure functionapp publish'."
   value       = azurerm_linux_function_app.this.name
