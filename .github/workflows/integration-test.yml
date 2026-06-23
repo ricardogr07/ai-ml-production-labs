@@ -162,6 +162,36 @@ jobs:
           name: tfstate-acr-${{ inputs.lab }}
           path: labs/${{ inputs.lab }}/infra/
 
+      - name: Azure login (lab 03 import)
+        if: startsWith(inputs.lab, '03-')
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init (lab 03 import)
+        if: startsWith(inputs.lab, '03-')
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: terraform init
+
+      - name: Import orphaned container app (lab 03)
+        if: startsWith(inputs.lab, '03-')
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: |
+          RG="${TF_VAR_resource_group_name}"
+          CA_NAME="ca-fastmcp-portfolio-tools-dev"
+          if ! terraform state show azurerm_container_app.this > /dev/null 2>&1; then
+            CA_EXISTS=$(az containerapp show --name "$CA_NAME" --resource-group "$RG" --query name -o tsv 2>/dev/null || true)
+            if [ -n "$CA_EXISTS" ]; then
+              SUB=$(az account show --query id -o tsv)
+              terraform import azurerm_container_app.this \
+                "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.App/containerApps/$CA_NAME"
+            fi
+          fi
+
       - name: Apply
         id: apply
         uses: ./.github/actions/terraform-apply
