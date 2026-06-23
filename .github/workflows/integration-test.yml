@@ -70,8 +70,12 @@ jobs:
           fi
 
           if ! terraform state show azurerm_user_assigned_identity.acr_pull > /dev/null 2>&1; then
-            MI_ID=$(az identity show --name "mi-fastmcp-portfolio-tools-dev" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
-            [ -n "$MI_ID" ] && terraform import azurerm_user_assigned_identity.acr_pull "$MI_ID"
+            MI_EXISTS=$(az identity show --name "mi-fastmcp-portfolio-tools-dev" --resource-group "$RG" --query name -o tsv 2>/dev/null || true)
+            if [ -n "$MI_EXISTS" ]; then
+              SUB=$(az account show --query id -o tsv)
+              terraform import azurerm_user_assigned_identity.acr_pull \
+                "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-fastmcp-portfolio-tools-dev"
+            fi
           fi
 
           terraform apply -auto-approve \
