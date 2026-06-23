@@ -82,7 +82,7 @@ jobs:
   publish-functions:
     name: Publish function code
     needs: deploy
-    if: startsWith(inputs.lab, '02-')
+    if: always() && needs.deploy.result == 'success' && startsWith(inputs.lab, '02-')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -143,7 +143,7 @@ jobs:
   hold:
     name: Hold for manual validation
     needs: [deploy, publish-functions, smoke-test]
-    if: ${{ inputs.hold_for_validation == true && needs.smoke-test.result == 'success' }}
+    if: always() && inputs.hold_for_validation == true && needs.deploy.result == 'success' && (needs.publish-functions.result == 'success' || needs.publish-functions.result == 'skipped')
     runs-on: ubuntu-latest
     environment: integration-teardown
     steps:
@@ -155,7 +155,7 @@ jobs:
   teardown:
     name: Terraform destroy
     needs: [build, deploy, publish-functions, smoke-test, hold]
-    if: ${{ always() && needs.smoke-test.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped') }}
+    if: always() && needs.deploy.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped')
     runs-on: ubuntu-latest
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
