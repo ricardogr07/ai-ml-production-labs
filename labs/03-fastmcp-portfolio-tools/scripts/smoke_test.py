@@ -1,17 +1,34 @@
 #!/usr/bin/env python
-"""Smoke test: invoke all three portfolio tools via in-process FastMCP Client."""
+"""Smoke test: invoke all three portfolio tools.
+
+Without arguments: runs in-process via FastMCP Client.
+With a base URL argument: connects over HTTP (for ACA smoke testing).
+"""
 
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 
 from fastmcp import Client
-from fastmcp_portfolio_tools.server import mcp
 
 
-async def main() -> None:
-    async with Client(mcp) as c:
+async def main(base_url: str | None = None) -> None:
+    if base_url:
+        token = os.environ.get("MCP_AUTH_TOKEN", "")
+        if token:
+            from fastmcp.client.auth.bearer import BearerAuth
+
+            client: Client = Client(f"{base_url}/mcp/", auth=BearerAuth(token))
+        else:
+            client = Client(f"{base_url}/mcp/")
+    else:
+        from fastmcp_portfolio_tools.server import mcp
+
+        client = Client(mcp)
+
+    async with client as c:
         r1 = await c.call_tool(
             "score_project",
             {"project_description": "FastAPI ML service with pytest, Azure, and Docker."},
@@ -41,8 +58,9 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    url = sys.argv[1] if len(sys.argv) > 1 else None
     try:
-        asyncio.run(main())
+        asyncio.run(main(url))
     except AssertionError as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         sys.exit(1)

@@ -1,0 +1,4 @@
+acr_name           = "acraimlprodlabsdev"
+container_app_name = "ca-fastmcp-portfolio-tools-dev"
+container_image    = "acraimlprodlabsdev.azurecr.io/fastmcp-portfolio-tools:<sha>"
+mcp_auth_token     = "changeme"
