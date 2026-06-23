@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastmcp import FastMCP
+
+from fastmcp_portfolio_tools.config import Settings
+from fastmcp_portfolio_tools.schemas import ProjectScore
+from production_labs_shared.logging import configure_logging
+
+_settings = Settings()
+configure_logging(_settings.log_level)
 
 mcp = FastMCP("portfolio-tools")
 
 
 @mcp.tool()
-def score_project(project_description: str) -> dict[str, object]:
+def score_project(project_description: str) -> ProjectScore:
     """Score a project description against the portfolio thesis criteria."""
     desc = project_description.lower()
     criteria = {
@@ -19,8 +28,8 @@ def score_project(project_description: str) -> dict[str, object]:
         "has_docker": "docker" in desc,
     }
     score = sum(criteria.values()) / len(criteria)
-    recommendation = "strong" if score >= 0.6 else "needs work"
-    return {"score": round(score, 2), "criteria": criteria, "recommendation": recommendation}
+    recommendation: Literal["strong", "needs work"] = "strong" if score >= 0.6 else "needs work"
+    return ProjectScore(score=round(score, 2), criteria=criteria, recommendation=recommendation)
 
 
 @mcp.tool()
