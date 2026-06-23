@@ -54,7 +54,7 @@ jobs:
           uv export --package azure-functions-text-classifier --no-hashes --no-dev \
             | grep -v '^-e' > "$DEPLOY_DIR/requirements.txt"
           uv pip install -r "$DEPLOY_DIR/requirements.txt" \
-            --target "$DEPLOY_DIR/.python_packages/lib/python3.12/site-packages"
+            --target "$DEPLOY_DIR/.python_packages/lib/site-packages"
 
       - name: Deploy function app
         uses: Azure/functions-action@v1
