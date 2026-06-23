@@ -186,19 +186,22 @@ jobs:
         shell: bash
         run: terraform init
 
-      - name: Import orphaned container app (lab 03)
+      - name: Delete orphaned container app (lab 03)
         if: startsWith(inputs.lab, '03-')
         working-directory: labs/${{ inputs.lab }}/infra
         shell: bash
         run: |
           RG="${TF_VAR_resource_group_name}"
           CA_NAME="ca-fastmcp-portfolio-tools-dev"
+          # If the container app exists outside Terraform state (orphaned from a prior failed run),
+          # delete it so Terraform creates it fresh with the correct UserAssigned identity.
+          # Importing and updating a SystemAssigned->UserAssigned transition causes ACA to pull
+          # the image with the old identity, which has no AcrPull and times out after 20 minutes.
           if ! terraform state show azurerm_container_app.this > /dev/null 2>&1; then
             CA_EXISTS=$(az containerapp show --name "$CA_NAME" --resource-group "$RG" --query name -o tsv 2>/dev/null || true)
             if [ -n "$CA_EXISTS" ]; then
-              SUB=$(az account show --query id -o tsv)
-              terraform import azurerm_container_app.this \
-                "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.App/containerApps/$CA_NAME"
+              echo "Deleting orphaned container app to allow fresh creation with UserAssigned identity..."
+              az containerapp delete --name "$CA_NAME" --resource-group "$RG" --yes
             fi
           fi
 
