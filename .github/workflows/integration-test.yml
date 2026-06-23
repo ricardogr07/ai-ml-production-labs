@@ -79,6 +79,13 @@ jobs:
           NAME=$(terraform output -raw function_app_name 2>/dev/null || echo "")
           echo "function_app_name=${NAME}" >> "$GITHUB_OUTPUT"
 
+      - name: Upload Terraform state
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate-${{ inputs.lab }}
+          path: labs/${{ inputs.lab }}/infra/terraform.tfstate
+          retention-days: 1
+
   publish-functions:
     name: Publish function code
     needs: deploy
@@ -171,6 +178,12 @@ jobs:
       TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download Terraform state
+        uses: actions/download-artifact@v4
+        with:
+          name: tfstate-${{ inputs.lab }}
+          path: labs/${{ inputs.lab }}/infra/
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
