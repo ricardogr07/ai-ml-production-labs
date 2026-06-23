@@ -151,6 +151,7 @@ jobs:
     needs: [deploy, publish-functions, smoke-test]
     if: always() && inputs.hold_for_validation == true && needs.deploy.result == 'success' && (needs.publish-functions.result == 'success' || needs.publish-functions.result == 'skipped')
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: integration-teardown
     steps:
       - name: Print FQDN for Postman testing
@@ -161,7 +162,7 @@ jobs:
   teardown:
     name: Terraform destroy
     needs: [build, deploy, publish-functions, smoke-test, hold]
-    if: always() && needs.deploy.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped')
+    if: always() && needs.deploy.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped' || needs.hold.result == 'cancelled')
     runs-on: ubuntu-latest
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
