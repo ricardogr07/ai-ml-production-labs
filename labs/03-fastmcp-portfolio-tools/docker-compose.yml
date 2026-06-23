@@ -1,0 +1,9 @@
+services:
+  portfolio-tools:
+    build:
+      context: ../..
+      dockerfile: labs/03-fastmcp-portfolio-tools/Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.example
