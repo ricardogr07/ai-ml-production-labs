@@ -11,7 +11,7 @@ on:
           - 02-azure-functions-text-classifier
         default: 01-fastapi-azure-ml-service
       image_name:
-        description: Image name on GHCR (e.g. fastapi-azure-ml-service)
+        description: "Image name on GHCR (lab 01 only, e.g. fastapi-azure-ml-service)"
         type: string
         default: fastapi-azure-ml-service
       hold_for_validation:
@@ -27,6 +27,7 @@ permissions:
 jobs:
   build:
     name: Build and push image
+    if: "!startsWith(inputs.lab, '02-')"
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.build.outputs.image_tag }}
@@ -45,6 +46,7 @@ jobs:
   deploy:
     name: Terraform apply
     needs: build
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       fqdn: ${{ steps.apply.outputs.fqdn }}
