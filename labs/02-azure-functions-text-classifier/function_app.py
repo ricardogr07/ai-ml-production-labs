@@ -1,1 +1,1 @@
-from azure_functions_text_classifier.function_app import app
+from azure_functions_text_classifier.function_app import app as app
