@@ -60,6 +60,20 @@ jobs:
         working-directory: labs/${{ inputs.lab }}/infra
         shell: bash
         run: |
+          RG="${TF_VAR_resource_group_name}"
+          ACR="${TF_VAR_acr_name}"
+
+          # Import orphaned resources so apply is idempotent across reruns
+          if ! terraform state show azurerm_container_registry.this > /dev/null 2>&1; then
+            ACR_ID=$(az acr show --name "$ACR" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
+            [ -n "$ACR_ID" ] && terraform import azurerm_container_registry.this "$ACR_ID"
+          fi
+
+          if ! terraform state show azurerm_user_assigned_identity.acr_pull > /dev/null 2>&1; then
+            MI_ID=$(az identity show --name "mi-fastmcp-portfolio-tools-dev" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
+            [ -n "$MI_ID" ] && terraform import azurerm_user_assigned_identity.acr_pull "$MI_ID"
+          fi
+
           terraform apply -auto-approve \
             -target=azurerm_container_registry.this \
             -target=azurerm_user_assigned_identity.acr_pull \
