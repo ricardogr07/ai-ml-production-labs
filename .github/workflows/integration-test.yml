@@ -30,9 +30,51 @@ permissions:
   packages: write
 
 jobs:
+  provision-acr:
+    name: Provision ACR (lab 03)
+    if: startsWith(inputs.lab, '03-')
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      TF_VAR_acr_name: ${{ inputs.acr_name }}
+      TF_VAR_mcp_auth_token: ${{ secrets.MCP_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: terraform init
+
+      - name: Provision ACR
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: terraform apply -auto-approve -target=azurerm_container_registry.this
+
+      - name: Upload ACR Terraform state
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate-acr-${{ inputs.lab }}
+          path: labs/${{ inputs.lab }}/infra/terraform.tfstate
+          retention-days: 1
+
   build:
     name: Build and push image
-    if: "!startsWith(inputs.lab, '02-')"
+    needs: [provision-acr]
+    if: |
+      always() &&
+      !startsWith(inputs.lab, '02-') &&
+      (needs.provision-acr.result == 'success' || needs.provision-acr.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.build-ghcr.outputs.image_tag || steps.build-acr.outputs.image_tag }}
@@ -68,8 +110,11 @@ jobs:
 
   deploy:
     name: Terraform apply
-    needs: build
-    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    needs: [provision-acr, build]
+    if: |
+      always() &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.provision-acr.result == 'success' || needs.provision-acr.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       fqdn: ${{ steps.apply.outputs.fqdn }}
@@ -86,6 +131,13 @@ jobs:
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
+
+      - name: Download ACR Terraform state (lab 03)
+        if: startsWith(inputs.lab, '03-')
+        uses: actions/download-artifact@v4
+        with:
+          name: tfstate-acr-${{ inputs.lab }}
+          path: labs/${{ inputs.lab }}/infra/
 
       - name: Apply
         id: apply
