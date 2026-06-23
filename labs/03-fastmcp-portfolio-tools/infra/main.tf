@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.110"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.11"
+    }
   }
 }
 
@@ -68,12 +72,36 @@ resource "azurerm_container_registry" "this" {
   tags                = local.tags
 }
 
+# User-assigned identity so AcrPull can be granted before the container app is created,
+# avoiding the race condition where SystemAssigned identity's role hasn't propagated
+# by the time ACA tries its first image pull.
+resource "azurerm_user_assigned_identity" "acr_pull" {
+  name                = "mi-fastmcp-portfolio-tools-dev"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = local.tags
+}
+
+resource "azurerm_role_assignment" "acr_pull" {
+  scope                = azurerm_container_registry.this.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.acr_pull.principal_id
+}
+
+# Role assignments can take up to a few minutes to propagate in Azure AD.
+# Waiting here ensures ACA can pull from ACR on first provisioning.
+resource "time_sleep" "wait_for_role" {
+  depends_on      = [azurerm_role_assignment.acr_pull]
+  create_duration = "90s"
+}
+
 data "azurerm_container_app_environment" "this" {
   name                = var.environment_name
   resource_group_name = var.resource_group_name
 }
 
 resource "azurerm_container_app" "this" {
+  depends_on                   = [time_sleep.wait_for_role]
   name                         = var.container_app_name
   container_app_environment_id = data.azurerm_container_app_environment.this.id
   resource_group_name          = var.resource_group_name
@@ -81,12 +109,13 @@ resource "azurerm_container_app" "this" {
   tags                         = local.tags
 
   identity {
-    type = "SystemAssigned"
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.acr_pull.id]
   }
 
   registry {
     server   = azurerm_container_registry.this.login_server
-    identity = "system"
+    identity = azurerm_user_assigned_identity.acr_pull.id
   }
 
   secret {
@@ -127,12 +156,6 @@ resource "azurerm_container_app" "this" {
     min_replicas = 0
     max_replicas = 2
   }
-}
-
-resource "azurerm_role_assignment" "acr_pull" {
-  scope                = azurerm_container_registry.this.id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_container_app.this.identity[0].principal_id
 }
 
 output "fqdn" {

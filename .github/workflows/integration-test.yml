@@ -56,10 +56,15 @@ jobs:
         shell: bash
         run: terraform init
 
-      - name: Provision ACR
+      - name: Provision ACR and identity
         working-directory: labs/${{ inputs.lab }}/infra
         shell: bash
-        run: terraform apply -auto-approve -target=azurerm_container_registry.this
+        run: |
+          terraform apply -auto-approve \
+            -target=azurerm_container_registry.this \
+            -target=azurerm_user_assigned_identity.acr_pull \
+            -target=azurerm_role_assignment.acr_pull \
+            -target=time_sleep.wait_for_role
 
       - name: Upload ACR Terraform state
         uses: actions/upload-artifact@v4
