@@ -41,6 +41,7 @@ variable "environment_name" {
 
 variable "container_image" {
   type        = string
+  default     = ""
   description = "Full image reference, e.g. acraimlprodlabsdev.azurecr.io/fastmcp-portfolio-tools:<sha>"
 }
 
