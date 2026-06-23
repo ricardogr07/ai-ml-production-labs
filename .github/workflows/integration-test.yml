@@ -9,13 +9,18 @@ on:
         options:
           - 01-fastapi-azure-ml-service
           - 02-azure-functions-text-classifier
+          - 03-fastmcp-portfolio-tools
         default: 01-fastapi-azure-ml-service
       image_name:
         description: "Image name on GHCR (lab 01 only, e.g. fastapi-azure-ml-service)"
         type: string
         default: fastapi-azure-ml-service
+      acr_name:
+        description: "ACR registry name (lab 03 only)"
+        type: string
+        default: acraimlprodlabsdev
       hold_for_validation:
-        description: Pause before teardown for manual Postman testing
+        description: Pause before teardown for manual testing
         type: boolean
         default: false
 
@@ -30,18 +35,36 @@ jobs:
     if: "!startsWith(inputs.lab, '02-')"
     runs-on: ubuntu-latest
     outputs:
-      image_tag: ${{ steps.build.outputs.image_tag }}
+      image_tag: ${{ steps.build-ghcr.outputs.image_tag || steps.build-acr.outputs.image_tag }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and push
-        id: build
+      - name: Azure login (lab 03 ACR push)
+        if: startsWith(inputs.lab, '03-')
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push to GHCR
+        id: build-ghcr
+        if: "!startsWith(inputs.lab, '03-')"
         uses: ./.github/actions/build-and-push
         with:
           lab: ${{ inputs.lab }}
           image_name: ${{ inputs.image_name }}
           ghcr_username: ${{ github.repository_owner }}
           ghcr_pat: ${{ secrets.GHCR_PAT }}
+
+      - name: Build and push to ACR
+        id: build-acr
+        if: startsWith(inputs.lab, '03-')
+        uses: ./.github/actions/build-and-push-acr
+        with:
+          lab: ${{ inputs.lab }}
+          image_name: fastmcp-portfolio-tools
+          acr_name: ${{ inputs.acr_name }}
 
   deploy:
     name: Terraform apply
@@ -56,6 +79,8 @@ jobs:
       TF_VAR_ghcr_username: ${{ github.repository_owner }}
       TF_VAR_ghcr_pat: ${{ secrets.GHCR_PAT }}
       TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      TF_VAR_acr_name: ${{ inputs.acr_name }}
+      TF_VAR_mcp_auth_token: ${{ secrets.MCP_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -144,6 +169,8 @@ jobs:
       needs.deploy.result == 'success' &&
       (needs.publish-functions.result == 'success' || needs.publish-functions.result == 'skipped')
     runs-on: ubuntu-latest
+    env:
+      MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -161,7 +188,7 @@ jobs:
     timeout-minutes: 60
     environment: integration-teardown
     steps:
-      - name: Print FQDN for Postman testing
+      - name: Print FQDN for testing
         run: |
           echo "Service is live at: https://${{ needs.deploy.outputs.fqdn }}"
           echo "Approve this step in GitHub Actions to proceed with teardown."
@@ -176,6 +203,8 @@ jobs:
       TF_VAR_ghcr_username: ${{ github.repository_owner }}
       TF_VAR_ghcr_pat: ${{ secrets.GHCR_PAT }}
       TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      TF_VAR_acr_name: ${{ inputs.acr_name }}
+      TF_VAR_mcp_auth_token: ${{ secrets.MCP_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 

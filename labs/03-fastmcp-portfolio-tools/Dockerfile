@@ -21,7 +21,5 @@ RUN uv sync --frozen --package fastmcp-portfolio-tools
 EXPOSE 8080
 
 CMD ["uv", "run", "--package", "fastmcp-portfolio-tools", \
-     "fastmcp", "run", \
-     "--transport", "streamable-http", \
-     "--port", "8080", \
-     "labs/03-fastmcp-portfolio-tools/src/fastmcp_portfolio_tools/server.py"]
+     "uvicorn", "fastmcp_portfolio_tools.asgi:app", \
+     "--host", "0.0.0.0", "--port", "8080"]

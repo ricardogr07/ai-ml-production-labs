@@ -1,0 +1,44 @@
+name: Build and push Docker image to ACR
+description: Builds a lab Dockerfile and pushes the image to Azure Container Registry using Azure CLI login
+
+inputs:
+  lab:
+    description: Lab directory name (e.g. 03-fastmcp-portfolio-tools)
+    required: true
+  image_name:
+    description: Image name on ACR (e.g. fastmcp-portfolio-tools)
+    required: true
+  acr_name:
+    description: ACR registry name (e.g. acraimlprodlabsdev)
+    required: true
+
+outputs:
+  image_tag:
+    description: Full image reference including SHA tag
+    value: ${{ steps.meta.outputs.image_tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Log in to ACR
+      shell: bash
+      run: az acr login --name "${{ inputs.acr_name }}"
+
+    - name: Set image tag
+      id: meta
+      shell: bash
+      run: |
+        IMAGE="${{ inputs.acr_name }}.azurecr.io/${{ inputs.image_name }}:${{ github.sha }}"
+        echo "image_tag=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+    - name: Build image
+      shell: bash
+      run: |
+        docker build \
+          -f "labs/${{ inputs.lab }}/Dockerfile" \
+          -t "${{ steps.meta.outputs.image_tag }}" \
+          .
+
+    - name: Push image
+      shell: bash
+      run: docker push "${{ steps.meta.outputs.image_tag }}"

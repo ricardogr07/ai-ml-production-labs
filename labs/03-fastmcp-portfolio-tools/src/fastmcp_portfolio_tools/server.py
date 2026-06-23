@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastmcp import FastMCP
+from fastmcp.server.auth.providers.debug import DebugTokenVerifier
 
 from fastmcp_portfolio_tools.config import Settings
 from fastmcp_portfolio_tools.schemas import ProjectScore
@@ -13,7 +14,13 @@ from production_labs_shared.logging import configure_logging
 _settings = Settings()
 configure_logging(_settings.log_level)
 
-mcp = FastMCP("portfolio-tools")
+_auth = (
+    DebugTokenVerifier(validate=lambda token: token == _settings.mcp_auth_token)
+    if _settings.mcp_auth_token
+    else None
+)
+
+mcp = FastMCP("portfolio-tools", auth=_auth)
 
 
 @mcp.tool()
