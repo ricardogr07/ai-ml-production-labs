@@ -1,0 +1,119 @@
+{
+  "info": {
+    "name": "Lab 05: Ollama Local LLM API",
+    "description": "Collection for testing the Lab 05 Ollama Local LLM API service.\n\nPrerequisite: Ollama must be running with phi3.5 or tinyllama pulled.\n\nQuick start:\n  ollama pull phi3.5\n  uv run --package ollama-local-llm-api uvicorn ollama_local_llm_api.app:app --reload\n  # or\n  docker compose -f labs/05-ollama-local-llm-api/docker-compose.yml up -d",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Returns service liveness. Does not require Ollama. Expects 200 with status: \"ok\"."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"status\": \"ok\",\n  \"service\": \"ollama-local-llm-api\",\n  \"version\": \"0.1.0\",\n  \"timestamp_utc\": \"2026-06-24T00:00:00Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Summarize: phi3.5 (default model)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"FastAPI is a modern Python web framework built on Starlette and Pydantic v2. It provides automatic OpenAPI documentation and supports async request handlers natively.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["summarize"]
+        },
+        "description": "Summarize text using the default phi3.5 model. Requires Ollama running with phi3.5 pulled. Expects summary, model, and latency_ms."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"summary\": \"FastAPI is a fast, async Python framework for building APIs with automatic validation and documentation.\",\n  \"model\": \"phi3.5\",\n  \"latency_ms\": 4231.7\n}"
+        }
+      ]
+    },
+    {
+      "name": "Summarize: tinyllama (fast)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Containers package an app and its dependencies into a portable unit that runs consistently across environments.\",\n  \"model\": \"tinyllama\",\n  \"max_tokens\": 64\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["summarize"]
+        },
+        "description": "Summarize using tinyllama with a short max_tokens budget. Faster than phi3.5 on CPU."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"summary\": \"Containers bundle an app with its dependencies for consistent cross-environment execution.\",\n  \"model\": \"tinyllama\",\n  \"latency_ms\": 1842.3\n}"
+        }
+      ]
+    },
+    {
+      "name": "Summarize: validation error (empty text)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["summarize"]
+        },
+        "description": "Empty text violates min_length=1. Expects 422 Unprocessable Entity before Ollama is called."
+      },
+      "response": [
+        {
+          "name": "422 Unprocessable Entity",
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "body": "{\n  \"detail\": [\n    {\n      \"type\": \"string_too_short\",\n      \"loc\": [\"body\", \"text\"],\n      \"msg\": \"String should have at least 1 character\"\n    }\n  ]\n}"
+        }
+      ]
+    }
+  ]
+}
