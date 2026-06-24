@@ -10,6 +10,7 @@ on:
           - 01-fastapi-azure-ml-service
           - 02-azure-functions-text-classifier
           - 03-fastmcp-portfolio-tools
+          - 04-cosmosdb-llm-eval-store
         default: 01-fastapi-azure-ml-service
       image_name:
         description: "Image name on GHCR (lab 01 only, e.g. fastapi-azure-ml-service)"
@@ -107,6 +108,7 @@ jobs:
     if: |
       always() &&
       !startsWith(inputs.lab, '02-') &&
+      !startsWith(inputs.lab, '04-') &&
       (needs.provision-acr.result == 'success' || needs.provision-acr.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
@@ -152,6 +154,8 @@ jobs:
     outputs:
       fqdn: ${{ steps.apply.outputs.fqdn }}
       function_app_name: ${{ steps.fn_name.outputs.function_app_name }}
+      cosmos_endpoint: ${{ steps.cosmos.outputs.endpoint }}
+      cosmos_key: ${{ steps.cosmos.outputs.key }}
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
       TF_VAR_ghcr_username: ${{ github.repository_owner }}
@@ -221,6 +225,18 @@ jobs:
         run: |
           NAME=$(terraform output -raw function_app_name 2>/dev/null || echo "")
           echo "function_app_name=${NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Capture Cosmos outputs (lab 04)
+        if: startsWith(inputs.lab, '04-')
+        id: cosmos
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: |
+          ENDPOINT=$(terraform output -raw endpoint 2>/dev/null || echo "")
+          KEY=$(terraform output -raw primary_key 2>/dev/null || echo "")
+          echo "::add-mask::$KEY"
+          echo "endpoint=${ENDPOINT}" >> "$GITHUB_OUTPUT"
+          echo "key=${KEY}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Terraform state
         uses: actions/upload-artifact@v4
@@ -292,11 +308,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run smoke test
+      - name: Run HTTP smoke test (labs 01/02/03)
+        if: "!startsWith(inputs.lab, '04-')"
         uses: ./.github/actions/run-smoke-test
         with:
           lab: ${{ inputs.lab }}
           base_url: https://${{ needs.deploy.outputs.fqdn }}
+
+      - name: Set up uv (lab 04)
+        if: startsWith(inputs.lab, '04-')
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python (lab 04)
+        if: startsWith(inputs.lab, '04-')
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install dependencies (lab 04)
+        if: startsWith(inputs.lab, '04-')
+        run: uv sync --frozen --all-packages
+
+      - name: Run integration tests against Azure (lab 04)
+        if: startsWith(inputs.lab, '04-')
+        env:
+          COSMOS_URL: ${{ needs.deploy.outputs.cosmos_endpoint }}
+          COSMOS_KEY: ${{ needs.deploy.outputs.cosmos_key }}
+        run: uv run --python 3.12 pytest labs/${{ inputs.lab }} -v -m integration
+
+      - name: Run smoke test against deployed Azure (lab 04)
+        if: startsWith(inputs.lab, '04-')
+        env:
+          COSMOS_URL: ${{ needs.deploy.outputs.cosmos_endpoint }}
+          COSMOS_KEY: ${{ needs.deploy.outputs.cosmos_key }}
+        run: uv run python labs/${{ inputs.lab }}/scripts/smoke_test.py --target deployed
 
   hold:
     name: Hold for manual validation
@@ -306,9 +353,12 @@ jobs:
     timeout-minutes: 60
     environment: integration-teardown
     steps:
-      - name: Print FQDN for testing
+      - name: Print endpoint for testing
         run: |
-          echo "Service is live at: https://${{ needs.deploy.outputs.fqdn }}"
+          FQDN="${{ needs.deploy.outputs.fqdn }}"
+          COSMOS="${{ needs.deploy.outputs.cosmos_endpoint }}"
+          [ -n "$FQDN" ] && echo "Service is live at: https://${FQDN}"
+          [ -n "$COSMOS" ] && echo "CosmosDB endpoint: ${COSMOS}"
           echo "Approve this step in GitHub Actions to proceed with teardown."
 
   teardown:

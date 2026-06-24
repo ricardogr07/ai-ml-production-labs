@@ -15,6 +15,7 @@ class Experiment(BaseModel):
     description: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     status: Literal["active", "archived"] = "active"
+    document_type: Literal["experiment"] = "experiment"
 
 
 class PromptRun(BaseModel):
@@ -24,6 +25,7 @@ class PromptRun(BaseModel):
     model_name: str
     model_version: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    document_type: Literal["prompt_run"] = "prompt_run"
 
 
 class ModelResponse(BaseModel):
@@ -34,6 +36,7 @@ class ModelResponse(BaseModel):
     latency_ms: float
     token_count: int
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    document_type: Literal["model_response"] = "model_response"
 
 
 class EvaluationScore(BaseModel):
@@ -44,3 +47,4 @@ class EvaluationScore(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
     evaluator: Literal["auto", "human"] = "auto"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    document_type: Literal["evaluation_score"] = "evaluation_score"
