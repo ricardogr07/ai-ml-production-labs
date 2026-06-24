@@ -6,9 +6,15 @@ import httpx
 
 
 class OllamaClient:
-    def __init__(self, base_url: str = "http://localhost:11434", timeout: float = 30.0) -> None:
-        self._base_url = base_url
-        self._timeout = timeout
+    def __init__(
+        self,
+        base_url: str | None = None,
+        timeout: float | None = None,
+    ) -> None:
+        from ollama_local_llm_api.config import settings
+
+        self._base_url = base_url if base_url is not None else settings.ollama_base_url
+        self._timeout = timeout if timeout is not None else settings.ollama_timeout_seconds
 
     async def generate(self, model: str, prompt: str, max_tokens: int = 256) -> str:
         payload = {
