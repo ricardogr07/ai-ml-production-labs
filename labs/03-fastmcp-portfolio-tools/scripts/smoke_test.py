@@ -20,9 +20,9 @@ async def main(base_url: str | None = None) -> None:
         if token:
             from fastmcp.client.auth.bearer import BearerAuth
 
-            client: Client = Client(f"{base_url}/mcp/", auth=BearerAuth(token))
+            client: Client = Client(f"{base_url}/mcp", auth=BearerAuth(token))
         else:
-            client = Client(f"{base_url}/mcp/")
+            client = Client(f"{base_url}/mcp")
     else:
         from fastmcp_portfolio_tools.server import mcp
 
