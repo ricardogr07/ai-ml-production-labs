@@ -26,6 +26,12 @@ class EvalStoreRepository(ABC):
     @abstractmethod
     def list_scores(self, experiment_id: str) -> list[EvaluationScore]: ...
 
+    @abstractmethod
+    def list_prompt_runs(self, experiment_id: str) -> list[PromptRun]: ...
+
+    @abstractmethod
+    def list_responses(self, experiment_id: str) -> list[ModelResponse]: ...
+
 
 class InMemoryEvalStoreRepository(EvalStoreRepository):
     """Local in-memory implementation for tests and local development."""
@@ -53,3 +59,9 @@ class InMemoryEvalStoreRepository(EvalStoreRepository):
 
     def list_scores(self, experiment_id: str) -> list[EvaluationScore]:
         return [s for s in self._scores if s.experiment_id == experiment_id]
+
+    def list_prompt_runs(self, experiment_id: str) -> list[PromptRun]:
+        return [r for r in self._runs if r.experiment_id == experiment_id]
+
+    def list_responses(self, experiment_id: str) -> list[ModelResponse]:
+        return [r for r in self._responses if r.experiment_id == experiment_id]
