@@ -78,12 +78,12 @@ resource "azurerm_container_app" "this" {
   registry {
     server               = "ghcr.io"
     username             = var.ghcr_username
-    password_secret_name = "ghcr-pat"
+    password_secret_name = "ghcr-pat" # ggignore
   }
 
   secret {
     name  = "ghcr-pat"
-    value = var.ghcr_pat # pragma: allowlist secret
+    value = var.ghcr_pat # pragma: allowlist secret # ggignore
   }
 
   ingress {
