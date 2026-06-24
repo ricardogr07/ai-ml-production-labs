@@ -229,20 +229,32 @@ jobs:
         run: |
           RG="${TF_VAR_resource_group_name}"
           ACCT="cosmos-llm-eval-store-dev"
+          DB="llm-eval-store"
+          CONTAINER="evaluations"
 
-          if ! terraform state show azurerm_cosmosdb_account.this > /dev/null 2>&1; then
-            ID=$(az cosmosdb show --name "$ACCT" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
-            [ -n "$ID" ] && terraform import azurerm_cosmosdb_account.this "$ID"
-          fi
+          PROV=$(az cosmosdb show --name "$ACCT" --resource-group "$RG" --query provisioningState -o tsv 2>/dev/null || true)
 
-          if ! terraform state show azurerm_cosmosdb_sql_database.this > /dev/null 2>&1; then
-            ID=$(az cosmosdb sql database show --account-name "$ACCT" --name "llm-eval-store" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
-            [ -n "$ID" ] && terraform import azurerm_cosmosdb_sql_database.this "$ID"
-          fi
+          if [ "$PROV" = "Succeeded" ]; then
+            echo "Account is active, importing orphaned resources..."
 
-          if ! terraform state show azurerm_cosmosdb_sql_container.this > /dev/null 2>&1; then
-            ID=$(az cosmosdb sql container show --account-name "$ACCT" --database-name "llm-eval-store" --name "evaluations" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
-            [ -n "$ID" ] && terraform import azurerm_cosmosdb_sql_container.this "$ID"
+            if ! terraform state show azurerm_cosmosdb_account.this > /dev/null 2>&1; then
+              ID=$(az cosmosdb show --name "$ACCT" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
+              [ -n "$ID" ] && terraform import azurerm_cosmosdb_account.this "$ID"
+            fi
+
+            if ! terraform state show azurerm_cosmosdb_sql_database.this > /dev/null 2>&1; then
+              ID=$(az cosmosdb sql database show --account-name "$ACCT" --name "$DB" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
+              [ -n "$ID" ] && terraform import azurerm_cosmosdb_sql_database.this "$ID"
+            fi
+
+            if ! terraform state show azurerm_cosmosdb_sql_container.this > /dev/null 2>&1; then
+              ID=$(az cosmosdb sql container show --account-name "$ACCT" --database-name "$DB" --name "$CONTAINER" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
+              [ -n "$ID" ] && terraform import azurerm_cosmosdb_sql_container.this "$ID"
+            fi
+          elif [ -n "$PROV" ]; then
+            echo "Account is in state '$PROV', skipping import"
+          else
+            echo "Account not found, apply will create it"
           fi
 
       - name: Apply
