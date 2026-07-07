@@ -421,7 +421,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run HTTP smoke test (labs 01/02/03)
-        if: "!startsWith(inputs.lab, '04-') && !startsWith(inputs.lab, '05-') && !startsWith(inputs.lab, '08-')"
+        if: "!startsWith(inputs.lab, '04-') && !startsWith(inputs.lab, '05-') && !startsWith(inputs.lab, '06-') && !startsWith(inputs.lab, '08-')"
         uses: ./.github/actions/run-smoke-test
         with:
           lab: ${{ inputs.lab }}
@@ -654,9 +654,10 @@ jobs:
           LAB_NUM="${LAB%%-*}"
           echo "Sweeping resources tagged lab=${LAB_NUM} in ${AZURE_RESOURCE_GROUP}..."
 
+          # az resource list rejects --tag together with --resource-group, so filter the RG in the query
           # Repeated passes let dependent resources (e.g. a function app on its plan) fall in order
           for pass in 1 2 3 4 5; do
-            IDS=$(az resource list --resource-group "$AZURE_RESOURCE_GROUP" --tag "lab=${LAB_NUM}" --query "[].id" -o tsv)
+            IDS=$(az resource list --tag "lab=${LAB_NUM}" --query "[?resourceGroup=='${AZURE_RESOURCE_GROUP}'].id" -o tsv)
             if [ -z "$IDS" ]; then
               echo "Sweep clean after $((pass - 1)) pass(es)."
               exit 0
@@ -666,7 +667,7 @@ jobs:
             sleep 20
           done
 
-          LEFT=$(az resource list --resource-group "$AZURE_RESOURCE_GROUP" --tag "lab=${LAB_NUM}" --query "[].id" -o tsv)
+          LEFT=$(az resource list --tag "lab=${LAB_NUM}" --query "[?resourceGroup=='${AZURE_RESOURCE_GROUP}'].id" -o tsv)
           if [ -n "$LEFT" ]; then
             echo "::error::Sweep could not delete the following resources; clean up manually before the next run:"
             echo "$LEFT"
