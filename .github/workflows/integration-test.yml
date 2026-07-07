@@ -176,6 +176,33 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Azure login (labs 01/05 orphan check)
+        if: startsWith(inputs.lab, '01-') || startsWith(inputs.lab, '05-')
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Deploy always starts from empty local state, so an app left behind by a
+      # wedged teardown (deletes on this CAE can take 40+ minutes) would 409 the
+      # apply. Delete any orphan first; usually a no-op.
+      - name: Delete orphaned container app (labs 01/05)
+        if: startsWith(inputs.lab, '01-') || startsWith(inputs.lab, '05-')
+        shell: bash
+        env:
+          RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        run: |
+          case "${{ inputs.lab }}" in
+            01-*) CA_NAME="ca-fastapi-azure-ml-service-dev" ;;
+            05-*) CA_NAME="ca-ollama-local-llm-api-dev" ;;
+          esac
+          CA_EXISTS=$(az containerapp show --name "$CA_NAME" --resource-group "$RG" --query name -o tsv 2>/dev/null || true)
+          if [ -n "$CA_EXISTS" ]; then
+            echo "Deleting orphaned container app ${CA_NAME}..."
+            az containerapp delete --name "$CA_NAME" --resource-group "$RG" --yes
+          fi
+
       - name: Download ACR Terraform state (lab 03)
         if: startsWith(inputs.lab, '03-')
         uses: actions/download-artifact@v4
