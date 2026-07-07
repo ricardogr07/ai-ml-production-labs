@@ -98,6 +98,7 @@ jobs:
             -target=time_sleep.wait_for_role
 
       - name: Upload ACR Terraform state
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tfstate-acr-${{ inputs.lab }}
@@ -337,6 +338,7 @@ jobs:
           echo "endpoint=${ENDPOINT}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Terraform state
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tfstate-${{ inputs.lab }}
@@ -522,7 +524,8 @@ jobs:
   teardown:
     name: Terraform destroy
     needs: [build, deploy, publish-functions, smoke-test, hold]
-    if: always() && needs.deploy.result == 'success' && (needs.hold.result == 'success' || needs.hold.result == 'skipped' || needs.hold.result == 'cancelled')
+    # Runs on deploy failure too: a partial apply still creates resources that must be destroyed
+    if: always() && contains(fromJSON('["success", "failure"]'), needs.deploy.result) && (needs.hold.result == 'success' || needs.hold.result == 'skipped' || needs.hold.result == 'cancelled')
     runs-on: ubuntu-latest
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}

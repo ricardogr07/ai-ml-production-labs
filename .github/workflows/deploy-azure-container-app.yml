@@ -48,3 +48,29 @@ jobs:
           imageToBuild: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ github.sha }}
           containerAppName: ${{ inputs.image_name }}
           resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+  teardown:
+    name: Delete container app
+    needs: deploy
+    # Runs on deploy failure too: a partial deploy can still leave the app behind.
+    # The environment gate holds this job until approved, use that window to test the app.
+    if: always() && needs.deploy.result != 'skipped'
+    runs-on: ubuntu-latest
+    environment: integration-teardown
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Delete container app
+        run: |
+          RG="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          APP="${{ inputs.image_name }}"
+          if az containerapp show --name "$APP" --resource-group "$RG" > /dev/null 2>&1; then
+            az containerapp delete --name "$APP" --resource-group "$RG" --yes
+          else
+            echo "No container app '$APP' found, nothing to delete"
+          fi
