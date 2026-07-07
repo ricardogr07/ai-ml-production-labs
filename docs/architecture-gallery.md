@@ -85,7 +85,11 @@ project_idea
   -> identify_missing_artifacts
   -> generate_implementation_plan
   -> return_scorecard
+
+LLM_PROVIDER per node: none (heuristics) | ollama (json_schema) | anthropic (claude-opus-4-8)
 ```
+
+Deploy target: local CLI; CI runs it one-shot on Azure Container Instances
 
 ---
 
