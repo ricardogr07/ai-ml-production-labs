@@ -12,6 +12,7 @@ on:
           - 03-fastmcp-portfolio-tools
           - 04-cosmosdb-llm-eval-store
           - 05-ollama-local-llm-api
+          - 06-cosmosdb-vector-memory-lab
         default: 01-fastapi-azure-ml-service
       image_name:
         description: "Image name on GHCR (labs 01/05, e.g. fastapi-azure-ml-service or ollama-local-llm-api)"
@@ -110,6 +111,7 @@ jobs:
       always() &&
       !startsWith(inputs.lab, '02-') &&
       !startsWith(inputs.lab, '04-') &&
+      !startsWith(inputs.lab, '06-') &&
       (needs.provision-acr.result == 'success' || needs.provision-acr.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
@@ -259,6 +261,55 @@ jobs:
             echo "Account not found, apply will create it"
           fi
 
+      - name: Azure login (lab 06 import)
+        if: startsWith(inputs.lab, '06-')
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init (lab 06 import)
+        if: startsWith(inputs.lab, '06-')
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: terraform init
+
+      - name: Import orphaned CosmosDB resources (lab 06)
+        if: startsWith(inputs.lab, '06-')
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: |
+          RG="${TF_VAR_resource_group_name}"
+          ACCT="cosmos-vector-memory-dev"
+          DB="vector-memory"
+          CONTAINER="documents"
+
+          PROV=$(az cosmosdb show --name "$ACCT" --resource-group "$RG" --query provisioningState -o tsv 2>/dev/null || true)
+
+          if [ "$PROV" = "Succeeded" ]; then
+            echo "Account is active, importing orphaned resources..."
+
+            if ! terraform state show azurerm_cosmosdb_account.this > /dev/null 2>&1; then
+              ID=$(az cosmosdb show --name "$ACCT" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
+              [ -n "$ID" ] && terraform import azurerm_cosmosdb_account.this "$ID"
+            fi
+
+            if ! terraform state show azurerm_cosmosdb_sql_database.this > /dev/null 2>&1; then
+              ID=$(az cosmosdb sql database show --account-name "$ACCT" --name "$DB" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
+              [ -n "$ID" ] && terraform import azurerm_cosmosdb_sql_database.this "$ID"
+            fi
+
+            if ! terraform state show azapi_resource.container > /dev/null 2>&1; then
+              ID=$(az cosmosdb sql container show --account-name "$ACCT" --database-name "$DB" --name "$CONTAINER" --resource-group "$RG" --query id -o tsv 2>/dev/null || true)
+              [ -n "$ID" ] && terraform import azapi_resource.container "$ID"
+            fi
+          elif [ -n "$PROV" ]; then
+            echo "Account is in state '$PROV', skipping import"
+          else
+            echo "Account not found, apply will create it"
+          fi
+
       - name: Apply
         id: apply
         uses: ./.github/actions/terraform-apply
@@ -276,8 +327,8 @@ jobs:
           NAME=$(terraform output -raw function_app_name 2>/dev/null || echo "")
           echo "function_app_name=${NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Capture Cosmos outputs (lab 04)
-        if: startsWith(inputs.lab, '04-')
+      - name: Capture Cosmos outputs (labs 04/06)
+        if: startsWith(inputs.lab, '04-') || startsWith(inputs.lab, '06-')
         id: cosmos
         working-directory: labs/${{ inputs.lab }}/infra
         shell: bash
@@ -408,6 +459,41 @@ jobs:
 
       - name: Run smoke test against deployed Azure (lab 04)
         if: startsWith(inputs.lab, '04-')
+        env:
+          COSMOS_URL: ${{ needs.deploy.outputs.cosmos_endpoint }}
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        run: |
+          ACCT=$(echo "$COSMOS_URL" | sed 's|https://||;s|\.documents\.azure\.com.*||')
+          COSMOS_KEY=$(az cosmosdb keys list --name "$ACCT" --resource-group "$AZURE_RESOURCE_GROUP" --type keys --query primaryMasterKey -o tsv)
+          export COSMOS_KEY
+          uv run python labs/${{ inputs.lab }}/scripts/smoke_test.py --target deployed
+
+      - name: Set up uv (lab 06)
+        if: startsWith(inputs.lab, '06-')
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python (lab 06)
+        if: startsWith(inputs.lab, '06-')
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install dependencies (lab 06)
+        if: startsWith(inputs.lab, '06-')
+        run: uv sync --frozen --all-packages
+
+      - name: Azure login (lab 06)
+        if: startsWith(inputs.lab, '06-')
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run smoke test against deployed Azure (lab 06)
+        if: startsWith(inputs.lab, '06-')
         env:
           COSMOS_URL: ${{ needs.deploy.outputs.cosmos_endpoint }}
           AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
