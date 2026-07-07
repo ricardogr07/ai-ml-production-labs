@@ -13,9 +13,10 @@ on:
           - 04-cosmosdb-llm-eval-store
           - 05-ollama-local-llm-api
           - 06-cosmosdb-vector-memory-lab
+          - 08-langgraph-project-agent
         default: 01-fastapi-azure-ml-service
       image_name:
-        description: "Image name on GHCR (labs 01/05, e.g. fastapi-azure-ml-service or ollama-local-llm-api)"
+        description: "Image name on GHCR (labs 01/05/08, e.g. fastapi-azure-ml-service, ollama-local-llm-api or langgraph-project-agent)"
         type: string
         default: fastapi-azure-ml-service
       acr_name:
@@ -159,6 +160,7 @@ jobs:
       fqdn: ${{ steps.apply.outputs.fqdn }}
       function_app_name: ${{ steps.fn_name.outputs.function_app_name }}
       cosmos_endpoint: ${{ steps.cosmos.outputs.endpoint }}
+      agent_container_group: ${{ steps.agent_cg.outputs.agent_container_group }}
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
       TF_VAR_ghcr_username: ${{ github.repository_owner }}
@@ -167,6 +169,7 @@ jobs:
       TF_VAR_acr_name: ${{ inputs.acr_name }}
       TF_VAR_mcp_auth_token: ${{ secrets.MCP_AUTH_TOKEN }}
       TF_VAR_ollama_base_url: "http://placeholder:11434"
+      TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -328,6 +331,15 @@ jobs:
           NAME=$(terraform output -raw function_app_name 2>/dev/null || echo "")
           echo "function_app_name=${NAME}" >> "$GITHUB_OUTPUT"
 
+      - name: Capture agent container group (lab 08)
+        if: startsWith(inputs.lab, '08-')
+        id: agent_cg
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: |
+          NAME=$(terraform output -raw agent_container_group 2>/dev/null || echo "")
+          echo "agent_container_group=${NAME}" >> "$GITHUB_OUTPUT"
+
       - name: Capture Cosmos outputs (labs 04/06)
         if: startsWith(inputs.lab, '04-') || startsWith(inputs.lab, '06-')
         id: cosmos
@@ -409,7 +421,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run HTTP smoke test (labs 01/02/03)
-        if: "!startsWith(inputs.lab, '04-') && !startsWith(inputs.lab, '05-')"
+        if: "!startsWith(inputs.lab, '04-') && !startsWith(inputs.lab, '05-') && !startsWith(inputs.lab, '08-')"
         uses: ./.github/actions/run-smoke-test
         with:
           lab: ${{ inputs.lab }}
@@ -505,6 +517,69 @@ jobs:
           export COSMOS_KEY
           uv run python labs/${{ inputs.lab }}/scripts/smoke_test.py --target deployed
 
+      - name: Azure login (lab 08)
+        if: startsWith(inputs.lab, '08-')
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Assert agent run against Anthropic API (lab 08)
+        if: startsWith(inputs.lab, '08-')
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AGENT_CG: ${{ needs.deploy.outputs.agent_container_group }}
+        run: |
+          echo "Waiting for one-shot agent container to terminate..."
+          for i in $(seq 1 60); do
+            STATE=$(az container show --name "$AGENT_CG" --resource-group "$AZURE_RESOURCE_GROUP" \
+              --query "containers[0].instanceView.currentState.state" -o tsv 2>/dev/null || echo "")
+            echo "state: ${STATE:-unknown}"
+            [ "$STATE" = "Terminated" ] && break
+            sleep 10
+          done
+
+          EXIT_CODE=$(az container show --name "$AGENT_CG" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "containers[0].instanceView.currentState.exitCode" -o tsv)
+          az container logs --name "$AGENT_CG" --resource-group "$AZURE_RESOURCE_GROUP" | tee agent.log
+
+          [ "$EXIT_CODE" = "0" ] || { echo "Agent exited with code $EXIT_CODE"; exit 1; }
+          grep -q '"recommendation"' agent.log || { echo "Scorecard missing from agent output"; exit 1; }
+
+      - name: Set up uv (lab 08)
+        if: startsWith(inputs.lab, '08-')
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python (lab 08)
+        if: startsWith(inputs.lab, '08-')
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install dependencies (lab 08)
+        if: startsWith(inputs.lab, '08-')
+        run: uv sync --frozen --all-packages
+
+      - name: Run integration tests against Azure Ollama (lab 08)
+        if: startsWith(inputs.lab, '08-')
+        env:
+          OLLAMA_BASE_URL: http://${{ needs.deploy.outputs.fqdn }}:11434
+          OLLAMA_MODEL: llama3.2
+        run: |
+          echo "Waiting for Ollama API at $OLLAMA_BASE_URL ..."
+          for i in $(seq 1 30); do
+            curl -sf "$OLLAMA_BASE_URL/api/tags" > /dev/null && break
+            sleep 10
+          done
+
+          echo "Pulling $OLLAMA_MODEL ..."
+          curl -sf "$OLLAMA_BASE_URL/api/pull" -d "{\"name\": \"$OLLAMA_MODEL\"}" | tail -1
+
+          uv run pytest labs/${{ inputs.lab }} -v -m integration
+
   hold:
     name: Hold for manual validation
     needs: [deploy, publish-functions, smoke-test]
@@ -534,6 +609,7 @@ jobs:
       TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
       TF_VAR_acr_name: ${{ inputs.acr_name }}
       TF_VAR_mcp_auth_token: ${{ secrets.MCP_AUTH_TOKEN }}
+      TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 

@@ -1,0 +1,8 @@
+resource_group_name = "rg-ai-ml-production-labs-dev"
+location            = "eastus"
+container_image     = "ghcr.io/<owner>/langgraph-project-agent:<sha>"
+ghcr_username       = "<github-username>"
+ghcr_pat            = "<pat-with-read-packages>"
+anthropic_api_key   = "<anthropic-api-key>"
+anthropic_model     = "claude-opus-4-8"
+ollama_dns_label    = "ollama-lab08-dev"

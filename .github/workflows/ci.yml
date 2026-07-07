@@ -46,3 +46,29 @@ jobs:
 
       - name: Run tox quality gates
         run: uv run tox -e lint,type,py312,security,audit
+
+  anthropic-e2e:
+    name: Anthropic E2E (lab 08)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Sync dependencies
+        run: uv sync --frozen --all-packages
+
+      # Skips gracefully when the secret is unavailable (e.g. fork PRs)
+      - name: Run lab 08 e2e against the Anthropic API
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run pytest labs/08-langgraph-project-agent -v -m e2e
