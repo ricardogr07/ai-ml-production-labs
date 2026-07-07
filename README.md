@@ -27,8 +27,8 @@ ai-ml-production-labs/
     13-fastapi-opentelemetry-lab/
     14-portfolio-ai-production-capstone/
   docs/
-    roadmap.md
-    adr/
+    architecture-gallery.md
+    lab-template.md
   infra/azure/
   scripts/
   .github/workflows/
@@ -79,13 +79,13 @@ uv run --package fastapi-azure-ml-service uvicorn fastapi_azure_ml_service.app:a
 | Lab | Capability | Status |
 |---|---|---|
 | [01 FastAPI Azure ML Service](labs/01-fastapi-azure-ml-service/README.md) | Containerized FastAPI service on Azure Container Apps | Ready |
-| [02 Azure Functions Text Classifier](labs/02-azure-functions-text-classifier/README.md) | Serverless Python inference endpoint | Scaffold |
-| [03 FastMCP Portfolio Tools](labs/03-fastmcp-portfolio-tools/README.md) | MCP server with typed portfolio analysis tools | Scaffold |
-| [04 Cosmos DB LLM Eval Store](labs/04-cosmosdb-llm-eval-store/README.md) | NoSQL model for LLM evaluation workflows | Scaffold |
-| [05 Ollama Local LLM API](labs/05-ollama-local-llm-api/README.md) | FastAPI wrapper around local open-model LLM | Scaffold |
-| [06 Cosmos DB Vector Memory Lab](labs/06-cosmosdb-vector-memory-lab/README.md) | Embedding storage and vector search | Scaffold |
-| [07 RAG Retrieval Strategy Lab](labs/07-rag-retrieval-strategy-lab/README.md) | Compare retrieval strategies with metrics | Scaffold |
-| [08 LangGraph Project Agent](labs/08-langgraph-project-agent/README.md) | Controlled agent workflow using a state graph | Scaffold |
+| [02 Azure Functions Text Classifier](labs/02-azure-functions-text-classifier/README.md) | Serverless Python inference endpoint | Ready |
+| [03 FastMCP Portfolio Tools](labs/03-fastmcp-portfolio-tools/README.md) | MCP server with typed portfolio analysis tools | Ready |
+| [04 Cosmos DB LLM Eval Store](labs/04-cosmosdb-llm-eval-store/README.md) | NoSQL model for LLM evaluation workflows | Ready |
+| [05 Ollama Local LLM API](labs/05-ollama-local-llm-api/README.md) | FastAPI wrapper around local open-model LLM | Ready |
+| [06 Cosmos DB Vector Memory Lab](labs/06-cosmosdb-vector-memory-lab/README.md) | Embedding storage and vector search | Ready |
+| [07 RAG Retrieval Strategy Lab](labs/07-rag-retrieval-strategy-lab/README.md) | Compare retrieval strategies with metrics | Ready |
+| [08 LangGraph Project Agent](labs/08-langgraph-project-agent/README.md) | Three-tier LLM agent workflow (deterministic, Ollama, Anthropic) on a state graph | Ready |
 | [09 LlamaIndex Doc Q&A](labs/09-llamaindex-doc-qa-lab/README.md) | Document Q&A with cited source chunks | Scaffold |
 | [10 MLflow Classifier API](labs/10-mlflow-classifier-api/README.md) | Classical ML model trained, tracked, and served | Scaffold |
 | [11 Fine-tuned Project Classifier](labs/11-finetune-project-classifier/README.md) | Fine-tune a small model with before/after metrics | Scaffold |
@@ -104,10 +104,13 @@ Every pull request runs:
 3. Linting (ruff)
 4. Type checking (pyrefly)
 5. Unit and integration tests (pytest)
-6. Coverage (≥ 80%)
+6. Coverage gate (≥ 60%, raised per lab as labs complete)
 7. Security scan (bandit)
 8. Dependency audit (pip-audit)
 9. Docker build for deployable labs
+10. Anthropic API e2e for lab 08 (skips when the secret is unavailable)
+
+On demand, `integration-test.yml` (workflow dispatch) deploys a chosen lab to Azure with Terraform, runs its smoke and integration tests against the live deployment, and always tears the resources down, with a tag-based sweep as the safety net.
 
 ---
 

@@ -43,7 +43,7 @@ This project uses a User-Assigned Managed Identity for OIDC authentication from 
 
 ```bash
 az identity create \
-  --name mi-ai-ml-production-labs \
+  --name mi-gh-ai-ml-production-labs \
   --resource-group rg-ai-ml-production-labs-dev
 ```
 
@@ -55,7 +55,18 @@ From the output record:
 | `tenantId` | `AZURE_TENANT_ID` secret |
 | `principalId` | Role assignment below |
 
-### 2. Grant Contributor on the shared resource group
+### 2. Grant Contributor and User Access Administrator on the shared resource group
+
+Contributor covers most labs. Lab 03 additionally creates a role assignment during apply, which requires User Access Administrator:
+
+```bash
+az role assignment create --assignee-object-id <principalId> --assignee-principal-type ServicePrincipal \
+  --role Contributor --scope /subscriptions/<subscription-id>/resourceGroups/rg-ai-ml-production-labs-dev
+az role assignment create --assignee-object-id <principalId> --assignee-principal-type ServicePrincipal \
+  --role "User Access Administrator" --scope /subscriptions/<subscription-id>/resourceGroups/rg-ai-ml-production-labs-dev
+```
+
+Role assignments take a few minutes to propagate; a workflow dispatched immediately after granting may fail with "No subscriptions found".
 
 If `az role assignment create` fails with a `MissingSubscription` error (common behind corporate proxies), use `az rest` directly:
 
@@ -76,7 +87,7 @@ az rest --method PUT \
 ```bash
 az identity federated-credential create \
   --name github-actions-master \
-  --identity-name mi-ai-ml-production-labs \
+  --identity-name mi-gh-ai-ml-production-labs \
   --resource-group rg-ai-ml-production-labs-dev \
   --issuer https://token.actions.githubusercontent.com \
   --subject repo:<github-username>/ai-ml-production-labs:ref:refs/heads/master \
@@ -93,6 +104,8 @@ Go to **Settings > Secrets and variables > Actions** and add:
 | `AZURE_TENANT_ID` | Azure tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 | `AZURE_RESOURCE_GROUP` | `rg-ai-ml-production-labs-dev` |
-| `GHCR_PAT` | GitHub classic PAT with `write:packages` scope (required for lab 01 only) |
+| `GHCR_PAT` | GitHub classic PAT with `write:packages` scope (labs 01, 05, and 08) |
+| `MCP_AUTH_TOKEN` | Bearer token for lab 03's MCP server smoke test |
+| `ANTHROPIC_API_KEY` | Anthropic API key (lab 08 e2e job and one-shot agent container) |
 
 Note: GHCR requires a classic PAT. Fine-grained PATs do not support the `write:packages` scope.

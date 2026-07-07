@@ -65,3 +65,7 @@ mlartifacts/
 # Jupyter
 .ipynb_checkpoints/
 notebooks/
+
+# Assistant config stays local, never tracked
+CLAUDE.md
+CLAUDE.local.md
