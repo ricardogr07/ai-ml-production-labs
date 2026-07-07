@@ -599,8 +599,8 @@ jobs:
   teardown:
     name: Terraform destroy
     needs: [build, deploy, publish-functions, smoke-test, hold]
-    # Runs on deploy failure too: a partial apply still creates resources that must be destroyed
-    if: always() && contains(fromJSON('["success", "failure"]'), needs.deploy.result) && (needs.hold.result == 'success' || needs.hold.result == 'skipped' || needs.hold.result == 'cancelled')
+    # Runs on deploy failure and cancellation too: a partial apply still creates resources that must be destroyed
+    if: always() && contains(fromJSON('["success", "failure", "cancelled"]'), needs.deploy.result) && (needs.hold.result == 'success' || needs.hold.result == 'skipped' || needs.hold.result == 'cancelled')
     runs-on: ubuntu-latest
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
@@ -613,7 +613,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A run that died before uploading state must not kill teardown; the sweep below still runs
       - name: Download Terraform state
+        id: dl
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: tfstate-${{ inputs.lab }}
@@ -623,9 +626,49 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Destroy
+        if: steps.dl.outcome == 'success'
+        continue-on-error: true
         uses: ./.github/actions/terraform-destroy
         with:
           working_dir: labs/${{ inputs.lab }}/infra
           azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
           azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
           azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Safety net for every path terraform destroy cannot cover (missing or stale
+      # state artifact, destroy erroring midway, cancelled deploy): delete anything
+      # in the RG still tagged with this lab's number. Shared infra is tagged
+      # lab=shared and the CI identity is untagged, so neither can match.
+      - name: Azure login (sweep)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sweep remaining lab resources
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          LAB: ${{ inputs.lab }}
+        run: |
+          LAB_NUM="${LAB%%-*}"
+          echo "Sweeping resources tagged lab=${LAB_NUM} in ${AZURE_RESOURCE_GROUP}..."
+
+          # Repeated passes let dependent resources (e.g. a function app on its plan) fall in order
+          for pass in 1 2 3 4 5; do
+            IDS=$(az resource list --resource-group "$AZURE_RESOURCE_GROUP" --tag "lab=${LAB_NUM}" --query "[].id" -o tsv)
+            if [ -z "$IDS" ]; then
+              echo "Sweep clean after $((pass - 1)) pass(es)."
+              exit 0
+            fi
+            echo "Pass ${pass}: deleting $(echo "$IDS" | wc -l) resource(s)"
+            echo "$IDS" | tr '\n' '\0' | xargs -0 -r az resource delete --ids || true
+            sleep 20
+          done
+
+          LEFT=$(az resource list --resource-group "$AZURE_RESOURCE_GROUP" --tag "lab=${LAB_NUM}" --query "[].id" -o tsv)
+          if [ -n "$LEFT" ]; then
+            echo "::error::Sweep could not delete the following resources; clean up manually before the next run:"
+            echo "$LEFT"
+            exit 1
+          fi
