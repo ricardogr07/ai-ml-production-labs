@@ -1,0 +1,62 @@
+[
+  {
+    "query": "How is AI trained on data?",
+    "relevant_doc_ids": ["doc-01", "doc-03"],
+    "category": "machine_learning"
+  },
+  {
+    "query": "Why do deep learning models overfit?",
+    "relevant_doc_ids": ["doc-04", "doc-02"],
+    "category": "machine_learning"
+  },
+  {
+    "query": "What optimization algorithm minimizes a loss function?",
+    "relevant_doc_ids": ["doc-05"],
+    "category": "machine_learning"
+  },
+  {
+    "query": "Why does bread made with a starter taste sour?",
+    "relevant_doc_ids": ["doc-06", "doc-07"],
+    "category": "cooking"
+  },
+  {
+    "query": "What cooking method uses a water bath at a controlled temperature?",
+    "relevant_doc_ids": ["doc-08"],
+    "category": "cooking"
+  },
+  {
+    "query": "What gives cooked meat its savory flavor?",
+    "relevant_doc_ids": ["doc-09"],
+    "category": "cooking"
+  },
+  {
+    "query": "What empire ruled the Mediterranean in the classical period?",
+    "relevant_doc_ids": ["doc-11"],
+    "category": "history"
+  },
+  {
+    "query": "What revolution began in Great Britain around 1760?",
+    "relevant_doc_ids": ["doc-14"],
+    "category": "history"
+  },
+  {
+    "query": "What is soccer and how many players are on each team?",
+    "relevant_doc_ids": ["doc-16"],
+    "category": "sports"
+  },
+  {
+    "query": "What is a marathon running race?",
+    "relevant_doc_ids": ["doc-18"],
+    "category": "sports"
+  },
+  {
+    "query": "What happens when a massive star explodes?",
+    "relevant_doc_ids": ["doc-24", "doc-25"],
+    "category": "astronomy"
+  },
+  {
+    "query": "Tell me about space objects with gravity so strong light cannot escape",
+    "relevant_doc_ids": ["doc-21"],
+    "category": "astronomy"
+  }
+]

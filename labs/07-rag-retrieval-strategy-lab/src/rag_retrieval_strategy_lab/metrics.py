@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from rag_retrieval_strategy_lab.strategies import RetrievalResult
+from rag_retrieval_strategy_lab.schemas import RetrievalResult
 
 
 def recall_at_k(retrieved: list[RetrievalResult], relevant_ids: set[str], k: int) -> float:
