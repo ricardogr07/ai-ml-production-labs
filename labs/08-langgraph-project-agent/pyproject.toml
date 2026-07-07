@@ -8,6 +8,7 @@ dependencies = [
   "production-labs-shared",
   "langgraph>=0.2",
   "langchain-anthropic>=0.3",
+  "langchain-ollama>=0.2",
   "pydantic>=2.7",
 ]
 
