@@ -11,8 +11,6 @@ from __future__ import annotations
 import json
 import urllib.request
 
-from qdrant_client import QdrantClient
-
 from llamaindex_doc_qa_lab import embeddings, vector_store
 from llamaindex_doc_qa_lab.config import settings
 from llamaindex_doc_qa_lab.errors import NotReadyError
@@ -27,7 +25,7 @@ def check_qdrant() -> None:
     # Every Qdrant call goes in the try: a transport error on any of them means
     # "not ready", not an opaque 500. The semantic checks below own the messages.
     try:
-        client = QdrantClient(url=settings.qdrant_url, timeout=_PROBE_TIMEOUT)
+        client = vector_store.make_qdrant_client(timeout=_PROBE_TIMEOUT)
         exists = client.collection_exists(collection)
         params = vector_store.named_vector(client, collection) if exists else None
         count = client.count(collection).count if params is not None else 0

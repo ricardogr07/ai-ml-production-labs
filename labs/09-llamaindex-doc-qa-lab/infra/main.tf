@@ -83,6 +83,26 @@ variable "qdrant_dns_label" {
   description = "DNS name label for the Qdrant container group (region unique)."
 }
 
+variable "qdrant_api_key" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "API key set on the deployed Qdrant and presented by the app and seed step. Generated per run by CI; empty default keeps destroy from requiring an apply-only value."
+}
+
+variable "dockerhub_username" {
+  type        = string
+  default     = ""
+  description = "Docker Hub username for authenticated ACI image pulls (avoids the anonymous rate limit); empty default keeps destroy from requiring it."
+}
+
+variable "dockerhub_token" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "Docker Hub access token (read scope) for authenticated ACI image pulls; empty default keeps destroy from requiring it."
+}
+
 data "azurerm_container_app_environment" "this" {
   name                = var.environment_name
   resource_group_name = var.resource_group_name
@@ -99,9 +119,18 @@ resource "azurerm_container_group" "ollama" {
   ip_address_type     = "Public"
   dns_name_label      = var.ollama_dns_label
 
+  # Pinned tag and authenticated Docker Hub pull: anonymous pulls of :latest on
+  # ACI share a public egress IP and hit Docker Hub's rate limit, which fails the
+  # apply. An access token lifts the limit and the pin keeps the run deterministic.
+  image_registry_credential {
+    server   = "index.docker.io"
+    username = var.dockerhub_username
+    password = var.dockerhub_token
+  }
+
   container {
     name   = "ollama"
-    image  = "ollama/ollama:latest"
+    image  = "ollama/ollama:0.31.2"
     cpu    = 2
     memory = 8
 
@@ -123,9 +152,9 @@ resource "azurerm_container_group" "ollama" {
   }
 }
 
-# Qdrant vector store: public and unauthenticated for the run's duration,
-# same tradeoff as the Ollama endpoint above but also writable (seed_data.py
-# upserts into it) - see README for the production note on API-key auth.
+# Qdrant vector store: public for the run's duration but API-key protected, so a
+# client without the key cannot read, seed, or delete the collection. The key is
+# generated per run by CI and shared with the app and seed step.
 resource "azurerm_container_group" "qdrant" {
   name                = "aci-qdrant-lab09-dev"
   location            = var.location
@@ -135,11 +164,21 @@ resource "azurerm_container_group" "qdrant" {
   ip_address_type     = "Public"
   dns_name_label      = var.qdrant_dns_label
 
+  image_registry_credential {
+    server   = "index.docker.io"
+    username = var.dockerhub_username
+    password = var.dockerhub_token
+  }
+
   container {
     name   = "qdrant"
-    image  = "qdrant/qdrant:latest"
+    image  = "qdrant/qdrant:v1.18.2"
     cpu    = 1
     memory = 2
+
+    secure_environment_variables = {
+      QDRANT__SERVICE__API_KEY = var.qdrant_api_key
+    }
 
     ports {
       port     = 6333
@@ -187,6 +226,11 @@ resource "azurerm_container_app" "this" {
     value = var.anthropic_api_key # pragma: allowlist secret # ggignore
   }
 
+  secret {
+    name  = "qdrant-api-key"
+    value = var.qdrant_api_key # pragma: allowlist secret # ggignore
+  }
+
   ingress {
     external_enabled = true
     target_port      = 8000
@@ -219,6 +263,10 @@ resource "azurerm_container_app" "this" {
       env {
         name  = "QDRANT_URL"
         value = "http://${azurerm_container_group.qdrant.fqdn}:6333"
+      }
+      env {
+        name        = "QDRANT_API_KEY"
+        secret_name = "qdrant-api-key"
       }
       env {
         name  = "ANTHROPIC_MODEL"

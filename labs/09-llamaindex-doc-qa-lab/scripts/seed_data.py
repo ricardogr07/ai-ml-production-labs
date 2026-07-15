@@ -22,7 +22,6 @@ from llama_index.core import Document, StorageContext, VectorStoreIndex
 from llama_index.core.node_parser import SentenceSplitter
 from llamaindex_doc_qa_lab import embeddings, vector_store
 from llamaindex_doc_qa_lab.config import settings
-from qdrant_client import QdrantClient
 
 from production_labs_shared.logging import configure_logging
 from production_labs_shared.telemetry import timed_operation
@@ -44,7 +43,7 @@ def main() -> int:
 
     embed_model = embeddings.get_embedding_model()
     dim = embeddings.embedding_dim()
-    client = QdrantClient(url=settings.qdrant_url)
+    client = vector_store.make_qdrant_client()
 
     # Create the collection with the named "text-dense" vector (or validate an
     # existing one, failing fast on a mismatched schema); see vector_store.
