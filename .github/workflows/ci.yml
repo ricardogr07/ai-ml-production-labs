@@ -50,6 +50,16 @@ jobs:
   anthropic-e2e:
     name: Anthropic E2E (labs 08, 09)
     runs-on: ubuntu-latest
+    # Qdrant service for lab 09's e2e: without a reachable, seeded Qdrant the
+    # seeded_qdrant fixture skips, so the full retrieve-and-generate loop never
+    # runs. That silent skip is how the named-vector bug reached a live run.
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+    env:
+      QDRANT_URL: http://localhost:6333
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,7 +77,18 @@ jobs:
       - name: Sync dependencies
         run: uv sync --frozen --all-packages
 
-      # Skips gracefully when the secret is unavailable (e.g. fork PRs)
+      - name: Wait for Qdrant and seed the lab 09 corpus
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:6333/readyz > /dev/null && break
+            sleep 2
+          done
+          uv run --frozen --package llamaindex-doc-qa-lab \
+            python labs/09-llamaindex-doc-qa-lab/scripts/seed_data.py --recreate
+
+      # Lab 09 needs the seeded Qdrant above; both labs need the key. The lab 09
+      # e2e skips only if the key is unavailable (e.g. fork PRs); lab 08 has no
+      # Qdrant dependency.
       - name: Run labs 08/09 e2e against the Anthropic API
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

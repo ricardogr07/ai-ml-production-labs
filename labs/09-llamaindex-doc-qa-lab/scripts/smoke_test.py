@@ -39,9 +39,15 @@ def main() -> int:
     print("OK")
 
     if health_only:
-        print("\nHealth-only mode: skipping /query test (backing services not available).")
+        print("\nHealth-only mode: skipping /ready and /query (backing services unavailable).")
         print("\nAll smoke tests passed.")
         return 0
+
+    print("GET /ready ...", end=" ")
+    r = client.get("/ready")
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
+    assert r.json()["ready"] is True, f"Service not ready: {r.text}"
+    print("OK")
 
     print("POST /query (top_k=2) ...", end=" ")
     r = client.post(
@@ -52,7 +58,8 @@ def main() -> int:
     assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
     data = r.json()
     assert data["answer"], "answer must be non-empty"
-    assert len(data["sources"]) <= 2, f"Expected at most 2 sources, got {len(data['sources'])}"
+    n_sources = len(data["sources"])
+    assert 1 <= n_sources <= 2, f"Expected 1 to 2 cited sources, got {n_sources}"
     print("OK")
 
     print("POST /query (empty question, expect 422) ...", end=" ")

@@ -14,3 +14,10 @@ def get_embedding_model() -> BaseEmbedding:
     from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
     return HuggingFaceEmbedding(model_name=settings.embedding_model_name)
+
+
+@lru_cache(maxsize=1)
+def embedding_dim() -> int:
+    """Dimension of the configured embedding model, probed once and cached. Seed
+    and readiness both compare a collection's named vector against this."""
+    return len(get_embedding_model().get_text_embedding("dimension probe"))

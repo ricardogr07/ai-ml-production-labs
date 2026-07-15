@@ -7,7 +7,7 @@ from llamaindex_doc_qa_lab.config import settings
 from qdrant_client import QdrantClient
 
 _SEED_HINT = (
-    "Qdrant collection not seeded — for local use: "
+    "Qdrant collection not seeded, for local use: "
     "docker compose up -d && uv run python scripts/seed_data.py"
 )
 
@@ -18,7 +18,7 @@ def seeded_qdrant() -> None:
         client = QdrantClient(url=settings.qdrant_url, timeout=5)
         exists = client.collection_exists(settings.qdrant_collection)
     except Exception:
-        pytest.skip("Qdrant not reachable — for local use: docker compose up -d")
+        pytest.skip("Qdrant not reachable, for local use: docker compose up -d")
 
     if not exists:
         pytest.skip(_SEED_HINT)

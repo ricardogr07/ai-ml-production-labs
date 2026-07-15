@@ -13,5 +13,5 @@ def test_query_end_to_end_with_ollama():
     result = QueryService().query(QueryRequest(question="What is DNA?", top_k=2))
 
     assert result.answer
-    assert len(result.sources) <= 2
+    assert 0 < len(result.sources) <= 2
     assert all(source.content for source in result.sources)
