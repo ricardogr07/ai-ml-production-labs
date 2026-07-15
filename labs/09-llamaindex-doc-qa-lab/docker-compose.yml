@@ -29,8 +29,12 @@ services:
       dockerfile: labs/09-llamaindex-doc-qa-lab/Dockerfile
     ports:
       - "8000:8000"
+    # Load the user's real .env when present (e.g. LLM_PROVIDER=anthropic plus the
+    # key); absent on the default Ollama path, where config defaults apply. The
+    # in-network service URLs below always override whatever the .env holds.
     env_file:
-      - .env.example
+      - path: .env
+        required: false
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - QDRANT_URL=http://qdrant:6333

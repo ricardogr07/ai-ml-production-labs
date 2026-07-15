@@ -34,7 +34,12 @@ Configuration lives in `.env` (see `.env.example`): `LLM_PROVIDER`, `OLLAMA_BASE
 ## Run locally
 
 ```bash
-docker compose -f labs/09-llamaindex-doc-qa-lab/docker-compose.yml up -d
+docker compose -f labs/09-llamaindex-doc-qa-lab/docker-compose.yml up -d --build
+
+# Ollama tier only: pull the generation model into the container (first run; the
+# ollama_data volume caches it afterwards). Not needed for the Anthropic tier.
+docker compose -f labs/09-llamaindex-doc-qa-lab/docker-compose.yml exec ollama ollama pull llama3.2
+
 uv run --frozen --package llamaindex-doc-qa-lab python labs/09-llamaindex-doc-qa-lab/scripts/seed_data.py
 
 curl localhost:8000/health
@@ -43,7 +48,7 @@ curl -X POST localhost:8000/query \
   -d '{"question": "What is DNA?", "top_k": 3}'
 ```
 
-To use the Anthropic tier instead, set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` in `.env` before `docker compose up`, or export them for a host-run `uvicorn llamaindex_doc_qa_lab.app:app`.
+The Ollama tier is the default and needs no `.env`. To use the Anthropic tier instead, `cp labs/09-llamaindex-doc-qa-lab/.env.example labs/09-llamaindex-doc-qa-lab/.env`, set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` in that `.env`, then `docker compose up` (Compose loads `.env` when present). For a host-run `uvicorn llamaindex_doc_qa_lab.app:app`, export the same variables instead.
 
 ## Test
 

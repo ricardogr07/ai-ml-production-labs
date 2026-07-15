@@ -20,9 +20,11 @@ from pathlib import Path
 import structlog
 from llama_index.core import Document, StorageContext, VectorStoreIndex
 from llama_index.core.node_parser import SentenceSplitter
+from llama_index.vector_stores.qdrant.base import DEFAULT_DENSE_VECTOR_NAME
 from llamaindex_doc_qa_lab import embeddings, vector_store
 from llamaindex_doc_qa_lab.config import settings
 from qdrant_client import QdrantClient
+from qdrant_client import models as qmodels
 
 from production_labs_shared.logging import configure_logging
 from production_labs_shared.telemetry import timed_operation
@@ -42,11 +44,28 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.recreate:
-        client = QdrantClient(url=settings.qdrant_url)
-        if client.collection_exists(settings.qdrant_collection):
-            client.delete_collection(settings.qdrant_collection)
-            log.info("seed.collection_dropped", collection=settings.qdrant_collection)
+    embed_model = embeddings.get_embedding_model()
+    client = QdrantClient(url=settings.qdrant_url)
+
+    if args.recreate and client.collection_exists(settings.qdrant_collection):
+        client.delete_collection(settings.qdrant_collection)
+        log.info("seed.collection_dropped", collection=settings.qdrant_collection)
+
+    # QdrantVectorStore upserts and queries a NAMED dense vector (DEFAULT_DENSE_VECTOR_NAME,
+    # "text-dense"), but its non-hybrid auto-create makes an UNNAMED vector, so a later
+    # from_vector_store query fails with "Not existing vector name error: text-dense".
+    # Create the collection explicitly with the named vector so seed, upsert, and query agree.
+    if not client.collection_exists(settings.qdrant_collection):
+        dim = len(embed_model.get_text_embedding("dimension probe"))
+        client.create_collection(
+            settings.qdrant_collection,
+            vectors_config={
+                DEFAULT_DENSE_VECTOR_NAME: qmodels.VectorParams(
+                    size=dim, distance=qmodels.Distance.COSINE
+                )
+            },
+        )
+        log.info("seed.collection_created", collection=settings.qdrant_collection, dim=dim)
 
     records = json.loads(_CORPUS.read_text(encoding="utf-8"))
     documents = [
@@ -68,7 +87,7 @@ def main() -> int:
         VectorStoreIndex.from_documents(
             documents,
             storage_context=storage_context,
-            embed_model=embeddings.get_embedding_model(),
+            embed_model=embed_model,
             transformations=[SentenceSplitter(chunk_size=512, chunk_overlap=64)],
         )
 
