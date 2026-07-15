@@ -20,11 +20,9 @@ from pathlib import Path
 import structlog
 from llama_index.core import Document, StorageContext, VectorStoreIndex
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.vector_stores.qdrant.base import DEFAULT_DENSE_VECTOR_NAME
 from llamaindex_doc_qa_lab import embeddings, vector_store
 from llamaindex_doc_qa_lab.config import settings
 from qdrant_client import QdrantClient
-from qdrant_client import models as qmodels
 
 from production_labs_shared.logging import configure_logging
 from production_labs_shared.telemetry import timed_operation
@@ -45,39 +43,15 @@ def main() -> int:
     args = parser.parse_args()
 
     embed_model = embeddings.get_embedding_model()
-    dim = len(embed_model.get_text_embedding("dimension probe"))
+    dim = embeddings.embedding_dim()
     client = QdrantClient(url=settings.qdrant_url)
 
-    if args.recreate and client.collection_exists(settings.qdrant_collection):
-        client.delete_collection(settings.qdrant_collection)
-        log.info("seed.collection_dropped", collection=settings.qdrant_collection)
-
-    # QdrantVectorStore upserts and queries a NAMED dense vector (DEFAULT_DENSE_VECTOR_NAME,
-    # "text-dense"), but its non-hybrid auto-create makes an UNNAMED vector, so a later
-    # from_vector_store query fails with "Not existing vector name error: text-dense".
-    # Create the collection explicitly with the named vector so seed, upsert, and query agree.
-    if client.collection_exists(settings.qdrant_collection):
-        # An existing collection may predate this fix (unnamed vector) or use a different
-        # embedding dimension. Do not seed into an incompatible schema: fail fast so a stale
-        # collection is not silently accepted or filled with unqueryable points.
-        vectors = client.get_collection(settings.qdrant_collection).config.params.vectors
-        named = vectors.get(DEFAULT_DENSE_VECTOR_NAME) if isinstance(vectors, dict) else None
-        if named is None or named.size != dim:
-            raise SystemExit(
-                f"Collection {settings.qdrant_collection!r} has an incompatible vector schema "
-                f"(need a named '{DEFAULT_DENSE_VECTOR_NAME}' vector at dim {dim}). "
-                "Re-run with --recreate to rebuild it."
-            )
-    else:
-        client.create_collection(
-            settings.qdrant_collection,
-            vectors_config={
-                DEFAULT_DENSE_VECTOR_NAME: qmodels.VectorParams(
-                    size=dim, distance=qmodels.Distance.COSINE
-                )
-            },
-        )
-        log.info("seed.collection_created", collection=settings.qdrant_collection, dim=dim)
+    # Create the collection with the named "text-dense" vector (or validate an
+    # existing one, failing fast on a mismatched schema); see vector_store.
+    status = vector_store.ensure_collection(
+        client, settings.qdrant_collection, dim, recreate=args.recreate
+    )
+    log.info(f"seed.collection_{status}", collection=settings.qdrant_collection, dim=dim)
 
     records = json.loads(_CORPUS.read_text(encoding="utf-8"))
     documents = [

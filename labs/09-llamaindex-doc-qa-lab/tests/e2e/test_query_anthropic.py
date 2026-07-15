@@ -30,4 +30,7 @@ def test_query_end_to_end_with_anthropic():
     result = QueryService().query(QueryRequest(question="What is DNA?", top_k=2))
 
     assert result.answer
-    assert len(result.sources) <= 2
+    # Retrieval must have contributed: a truthy answer with zero sources would
+    # mean the LLM answered without the corpus, which is not the loop under test.
+    assert 0 < len(result.sources) <= 2
+    assert all(source.content for source in result.sources)

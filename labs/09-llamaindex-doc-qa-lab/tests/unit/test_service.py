@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from llamaindex_doc_qa_lab.errors import GenerationError, NotReadyError
 from llamaindex_doc_qa_lab.schemas import QueryRequest
 from llamaindex_doc_qa_lab.service import QueryService
 
@@ -44,6 +45,8 @@ def test_query_maps_response_to_schema_and_applies_top_k():
     mock_index.as_query_engine.return_value = mock_query_engine
 
     with (
+        patch("llamaindex_doc_qa_lab.service.readiness.check_qdrant"),
+        patch("llamaindex_doc_qa_lab.service.readiness.check_llm"),
         patch(
             "llamaindex_doc_qa_lab.service.VectorStoreIndex.from_vector_store",
             return_value=mock_index,
@@ -64,3 +67,83 @@ def test_query_maps_response_to_schema_and_applies_top_k():
 
     _, kwargs = mock_index.as_query_engine.call_args
     assert kwargs["similarity_top_k"] == 2
+
+
+@pytest.mark.unit
+def test_query_raises_not_ready_when_preflight_fails():
+    with (
+        patch(
+            "llamaindex_doc_qa_lab.service.readiness.check_qdrant",
+            side_effect=NotReadyError("collection 'wikipedia-docs' does not exist"),
+        ),
+        pytest.raises(NotReadyError, match="does not exist"),
+    ):
+        QueryService().query(QueryRequest(question="What is DNA?", top_k=2))
+
+
+@pytest.mark.unit
+def test_query_maps_qdrant_fault_during_retrieval_to_not_ready():
+    # Readiness passed, then Qdrant drops before/inside the query (TOCTOU). The
+    # fault must map back to NotReadyError (503), not GenerationError (424).
+    from qdrant_client.http.exceptions import ResponseHandlingException
+
+    mock_query_engine = MagicMock()
+    mock_query_engine.query.side_effect = ResponseHandlingException(ConnectionError("qdrant gone"))
+    mock_index = MagicMock()
+    mock_index.as_query_engine.return_value = mock_query_engine
+
+    with (
+        patch("llamaindex_doc_qa_lab.service.readiness.check_qdrant"),
+        patch("llamaindex_doc_qa_lab.service.readiness.check_llm"),
+        patch(
+            "llamaindex_doc_qa_lab.service.VectorStoreIndex.from_vector_store",
+            return_value=mock_index,
+        ),
+        patch("llamaindex_doc_qa_lab.service.vector_store.get_vector_store"),
+        patch("llamaindex_doc_qa_lab.service.embeddings.get_embedding_model"),
+        patch("llamaindex_doc_qa_lab.service.llm.get_llm"),
+        pytest.raises(NotReadyError, match="became unavailable"),
+    ):
+        QueryService().query(QueryRequest(question="What is DNA?", top_k=2))
+
+
+@pytest.mark.unit
+def test_query_maps_qdrant_fault_during_setup_to_not_ready():
+    # Qdrant drops after readiness but during vector-store construction (before
+    # the query call). That setup fault must also map to NotReadyError (503).
+    from qdrant_client.http.exceptions import ResponseHandlingException
+
+    with (
+        patch("llamaindex_doc_qa_lab.service.readiness.check_qdrant"),
+        patch("llamaindex_doc_qa_lab.service.readiness.check_llm"),
+        patch(
+            "llamaindex_doc_qa_lab.service.vector_store.get_vector_store",
+            side_effect=ResponseHandlingException(ConnectionError("qdrant gone")),
+        ),
+        patch("llamaindex_doc_qa_lab.service.embeddings.get_embedding_model"),
+        patch("llamaindex_doc_qa_lab.service.llm.get_llm"),
+        pytest.raises(NotReadyError, match="became unavailable"),
+    ):
+        QueryService().query(QueryRequest(question="What is DNA?", top_k=2))
+
+
+@pytest.mark.unit
+def test_query_maps_generation_failure_to_generation_error():
+    mock_query_engine = MagicMock()
+    mock_query_engine.query.side_effect = RuntimeError("ollama connection reset")
+    mock_index = MagicMock()
+    mock_index.as_query_engine.return_value = mock_query_engine
+
+    with (
+        patch("llamaindex_doc_qa_lab.service.readiness.check_qdrant"),
+        patch("llamaindex_doc_qa_lab.service.readiness.check_llm"),
+        patch(
+            "llamaindex_doc_qa_lab.service.VectorStoreIndex.from_vector_store",
+            return_value=mock_index,
+        ),
+        patch("llamaindex_doc_qa_lab.service.vector_store.get_vector_store"),
+        patch("llamaindex_doc_qa_lab.service.embeddings.get_embedding_model"),
+        patch("llamaindex_doc_qa_lab.service.llm.get_llm"),
+        pytest.raises(GenerationError, match="ollama connection reset"),
+    ):
+        QueryService().query(QueryRequest(question="What is DNA?", top_k=2))

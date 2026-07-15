@@ -48,3 +48,57 @@ def test_get_vector_store_wires_settings(monkeypatch, mock_qdrant_client):
 @pytest.mark.usefixtures("mock_qdrant_client")
 def test_get_vector_store_is_cached():
     assert vector_store.get_vector_store() is vector_store.get_vector_store()
+
+
+@pytest.mark.unit
+def test_ensure_collection_creates_named_vector():
+    client = MagicMock()
+    client.collection_exists.return_value = False
+    status = vector_store.ensure_collection(client, "docs", 384)
+    assert status == "created"
+    _, kwargs = client.create_collection.call_args
+    vectors_config = kwargs["vectors_config"]
+    assert "text-dense" in vectors_config
+    assert vectors_config["text-dense"].size == 384
+
+
+@pytest.mark.unit
+def test_ensure_collection_validates_matching_schema():
+    client = MagicMock()
+    client.collection_exists.return_value = True
+    with patch("llamaindex_doc_qa_lab.vector_store.named_vector", return_value=MagicMock(size=384)):
+        status = vector_store.ensure_collection(client, "docs", 384)
+    assert status == "validated"
+    client.create_collection.assert_not_called()
+
+
+@pytest.mark.unit
+def test_ensure_collection_rejects_mismatched_dim():
+    client = MagicMock()
+    client.collection_exists.return_value = True
+    with (
+        patch("llamaindex_doc_qa_lab.vector_store.named_vector", return_value=MagicMock(size=768)),
+        pytest.raises(SystemExit, match="incompatible vector schema"),
+    ):
+        vector_store.ensure_collection(client, "docs", 384)
+
+
+@pytest.mark.unit
+def test_ensure_collection_rejects_unnamed_vector():
+    client = MagicMock()
+    client.collection_exists.return_value = True
+    with (
+        patch("llamaindex_doc_qa_lab.vector_store.named_vector", return_value=None),
+        pytest.raises(SystemExit, match="incompatible vector schema"),
+    ):
+        vector_store.ensure_collection(client, "docs", 384)
+
+
+@pytest.mark.unit
+def test_ensure_collection_recreate_drops_then_creates():
+    client = MagicMock()
+    client.collection_exists.return_value = True
+    status = vector_store.ensure_collection(client, "docs", 384, recreate=True)
+    assert status == "recreated"
+    client.delete_collection.assert_called_once_with("docs")
+    client.create_collection.assert_called_once()
