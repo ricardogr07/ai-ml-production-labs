@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Testing and tooling caches
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Git and IDE
+.git/
+.vscode/
+.idea/
+
+# Claude Code and local agent config
+.claude/
+.localagent/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+tfstate*/

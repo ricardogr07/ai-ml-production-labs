@@ -1,13 +1,19 @@
 [project]
 name = "llamaindex-doc-qa-lab"
 version = "0.1.0"
-description = "Document Q&A over project READMEs with cited source chunks using LlamaIndex."
+description = "Containerized LlamaIndex RAG service over a Wikipedia corpus in Qdrant, generating with Ollama or Anthropic."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "production-labs-shared",
-  "llama-index>=0.11",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "llama-index-core>=0.11",
+  "llama-index-llms-ollama>=0.3",
   "llama-index-llms-anthropic>=0.3",
+  "llama-index-embeddings-huggingface>=0.3",
+  "llama-index-vector-stores-qdrant>=0.3",
+  "qdrant-client>=1.9",
   "pydantic>=2.7",
 ]
 

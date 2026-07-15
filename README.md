@@ -86,7 +86,7 @@ uv run --package fastapi-azure-ml-service uvicorn fastapi_azure_ml_service.app:a
 | [06 Cosmos DB Vector Memory Lab](labs/06-cosmosdb-vector-memory-lab/README.md) | Embedding storage and vector search | Ready |
 | [07 RAG Retrieval Strategy Lab](labs/07-rag-retrieval-strategy-lab/README.md) | Compare retrieval strategies with metrics | Ready |
 | [08 LangGraph Project Agent](labs/08-langgraph-project-agent/README.md) | Three-tier LLM agent workflow (deterministic, Ollama, Anthropic) on a state graph | Ready |
-| [09 LlamaIndex Doc Q&A](labs/09-llamaindex-doc-qa-lab/README.md) | Document Q&A with cited source chunks | Scaffold |
+| [09 LlamaIndex Doc Q&A](labs/09-llamaindex-doc-qa-lab/README.md) | Containerized RAG over a Wikipedia corpus in Qdrant, generating with Ollama or Anthropic | Scaffold |
 | [10 MLflow Classifier API](labs/10-mlflow-classifier-api/README.md) | Classical ML model trained, tracked, and served | Scaffold |
 | [11 Fine-tuned Project Classifier](labs/11-finetune-project-classifier/README.md) | Fine-tune a small model with before/after metrics | Scaffold |
 | [12 ML Drift Monitoring Lab](labs/12-ml-drift-monitoring-lab/README.md) | Detect data drift between reference and current data | Scaffold |

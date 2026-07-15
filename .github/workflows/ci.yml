@@ -48,7 +48,7 @@ jobs:
         run: uv run tox -e lint,type,py312,security,audit
 
   anthropic-e2e:
-    name: Anthropic E2E (lab 08)
+    name: Anthropic E2E (labs 08, 09)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -68,7 +68,7 @@ jobs:
         run: uv sync --frozen --all-packages
 
       # Skips gracefully when the secret is unavailable (e.g. fork PRs)
-      - name: Run lab 08 e2e against the Anthropic API
+      - name: Run labs 08/09 e2e against the Anthropic API
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: uv run pytest labs/08-langgraph-project-agent -v -m e2e
+        run: uv run pytest labs/08-langgraph-project-agent labs/09-llamaindex-doc-qa-lab -v -m e2e
