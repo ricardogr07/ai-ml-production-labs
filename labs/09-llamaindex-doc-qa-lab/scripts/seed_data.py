@@ -45,6 +45,7 @@ def main() -> int:
     args = parser.parse_args()
 
     embed_model = embeddings.get_embedding_model()
+    dim = len(embed_model.get_text_embedding("dimension probe"))
     client = QdrantClient(url=settings.qdrant_url)
 
     if args.recreate and client.collection_exists(settings.qdrant_collection):
@@ -55,8 +56,19 @@ def main() -> int:
     # "text-dense"), but its non-hybrid auto-create makes an UNNAMED vector, so a later
     # from_vector_store query fails with "Not existing vector name error: text-dense".
     # Create the collection explicitly with the named vector so seed, upsert, and query agree.
-    if not client.collection_exists(settings.qdrant_collection):
-        dim = len(embed_model.get_text_embedding("dimension probe"))
+    if client.collection_exists(settings.qdrant_collection):
+        # An existing collection may predate this fix (unnamed vector) or use a different
+        # embedding dimension. Do not seed into an incompatible schema: fail fast so a stale
+        # collection is not silently accepted or filled with unqueryable points.
+        vectors = client.get_collection(settings.qdrant_collection).config.params.vectors
+        named = vectors.get(DEFAULT_DENSE_VECTOR_NAME) if isinstance(vectors, dict) else None
+        if named is None or named.size != dim:
+            raise SystemExit(
+                f"Collection {settings.qdrant_collection!r} has an incompatible vector schema "
+                f"(need a named '{DEFAULT_DENSE_VECTOR_NAME}' vector at dim {dim}). "
+                "Re-run with --recreate to rebuild it."
+            )
+    else:
         client.create_collection(
             settings.qdrant_collection,
             vectors_config={
