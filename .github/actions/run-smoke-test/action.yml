@@ -38,6 +38,6 @@ runs:
     - name: Run smoke test
       shell: bash
       run: |
-        uv run --package "${{ steps.pkg.outputs.name }}" \
+        uv run --frozen --package "${{ steps.pkg.outputs.name }}" \
           python "labs/${{ inputs.lab }}/scripts/smoke_test.py" \
           "${{ inputs.base_url }}"

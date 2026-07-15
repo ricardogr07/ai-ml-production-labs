@@ -14,9 +14,10 @@ on:
           - 05-ollama-local-llm-api
           - 06-cosmosdb-vector-memory-lab
           - 08-langgraph-project-agent
+          - 09-llamaindex-doc-qa-lab
         default: 01-fastapi-azure-ml-service
       image_name:
-        description: "Image name on GHCR (labs 01/05/08, e.g. fastapi-azure-ml-service, ollama-local-llm-api or langgraph-project-agent)"
+        description: "Image name on GHCR (labs 01/05/08/09, e.g. fastapi-azure-ml-service, ollama-local-llm-api, langgraph-project-agent or llamaindex-doc-qa-lab)"
         type: string
         default: fastapi-azure-ml-service
       acr_name:
@@ -161,6 +162,8 @@ jobs:
       function_app_name: ${{ steps.fn_name.outputs.function_app_name }}
       cosmos_endpoint: ${{ steps.cosmos.outputs.endpoint }}
       agent_container_group: ${{ steps.agent_cg.outputs.agent_container_group }}
+      ollama_fqdn: ${{ steps.lab09_outputs.outputs.ollama_fqdn }}
+      qdrant_fqdn: ${{ steps.lab09_outputs.outputs.qdrant_fqdn }}
     env:
       TF_VAR_container_image: ${{ needs.build.outputs.image_tag }}
       TF_VAR_ghcr_username: ${{ github.repository_owner }}
@@ -176,8 +179,8 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Azure login (labs 01/05 orphan check)
-        if: startsWith(inputs.lab, '01-') || startsWith(inputs.lab, '05-')
+      - name: Azure login (labs 01/05/09 orphan check)
+        if: startsWith(inputs.lab, '01-') || startsWith(inputs.lab, '05-') || startsWith(inputs.lab, '09-')
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -187,8 +190,8 @@ jobs:
       # Deploy always starts from empty local state, so an app left behind by a
       # wedged teardown (deletes on this CAE can take 40+ minutes) would 409 the
       # apply. Delete any orphan first; usually a no-op.
-      - name: Delete orphaned container app (labs 01/05)
-        if: startsWith(inputs.lab, '01-') || startsWith(inputs.lab, '05-')
+      - name: Delete orphaned container app (labs 01/05/09)
+        if: startsWith(inputs.lab, '01-') || startsWith(inputs.lab, '05-') || startsWith(inputs.lab, '09-')
         shell: bash
         env:
           RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
@@ -196,6 +199,7 @@ jobs:
           case "${{ inputs.lab }}" in
             01-*) CA_NAME="ca-fastapi-azure-ml-service-dev" ;;
             05-*) CA_NAME="ca-ollama-local-llm-api-dev" ;;
+            09-*) CA_NAME="ca-llamaindex-doc-qa-lab-dev" ;;
           esac
           CA_EXISTS=$(az containerapp show --name "$CA_NAME" --resource-group "$RG" --query name -o tsv 2>/dev/null || true)
           if [ -n "$CA_EXISTS" ]; then
@@ -367,6 +371,17 @@ jobs:
           NAME=$(terraform output -raw agent_container_group 2>/dev/null || echo "")
           echo "agent_container_group=${NAME}" >> "$GITHUB_OUTPUT"
 
+      - name: Capture Ollama/Qdrant outputs (lab 09)
+        if: startsWith(inputs.lab, '09-')
+        id: lab09_outputs
+        working-directory: labs/${{ inputs.lab }}/infra
+        shell: bash
+        run: |
+          OLLAMA=$(terraform output -raw ollama_fqdn 2>/dev/null || echo "")
+          QDRANT=$(terraform output -raw qdrant_fqdn 2>/dev/null || echo "")
+          echo "ollama_fqdn=${OLLAMA}" >> "$GITHUB_OUTPUT"
+          echo "qdrant_fqdn=${QDRANT}" >> "$GITHUB_OUTPUT"
+
       - name: Capture Cosmos outputs (labs 04/06)
         if: startsWith(inputs.lab, '04-') || startsWith(inputs.lab, '06-')
         id: cosmos
@@ -448,7 +463,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run HTTP smoke test (labs 01/02/03)
-        if: "!startsWith(inputs.lab, '04-') && !startsWith(inputs.lab, '05-') && !startsWith(inputs.lab, '06-') && !startsWith(inputs.lab, '08-')"
+        if: "!startsWith(inputs.lab, '04-') && !startsWith(inputs.lab, '05-') && !startsWith(inputs.lab, '06-') && !startsWith(inputs.lab, '08-') && !startsWith(inputs.lab, '09-')"
         uses: ./.github/actions/run-smoke-test
         with:
           lab: ${{ inputs.lab }}
@@ -606,6 +621,61 @@ jobs:
           curl -sf "$OLLAMA_BASE_URL/api/pull" -d "{\"name\": \"$OLLAMA_MODEL\"}" | tail -1
 
           uv run pytest labs/${{ inputs.lab }} -v -m integration
+
+      - name: Azure login (lab 09)
+        if: startsWith(inputs.lab, '09-')
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up uv (lab 09)
+        if: startsWith(inputs.lab, '09-')
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python (lab 09)
+        if: startsWith(inputs.lab, '09-')
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install dependencies (lab 09)
+        if: startsWith(inputs.lab, '09-')
+        run: uv sync --frozen --all-packages
+
+      - name: Wait for Ollama/Qdrant and seed the corpus (lab 09)
+        if: startsWith(inputs.lab, '09-')
+        env:
+          OLLAMA_BASE_URL: http://${{ needs.deploy.outputs.ollama_fqdn }}:11434
+          QDRANT_URL: http://${{ needs.deploy.outputs.qdrant_fqdn }}:6333
+          OLLAMA_MODEL: llama3.2
+        run: |
+          echo "Waiting for Ollama API at $OLLAMA_BASE_URL ..."
+          for i in $(seq 1 30); do
+            curl -sf "$OLLAMA_BASE_URL/api/tags" > /dev/null && break
+            sleep 10
+          done
+
+          echo "Pulling $OLLAMA_MODEL ..."
+          curl -sf "$OLLAMA_BASE_URL/api/pull" -d "{\"name\": \"$OLLAMA_MODEL\"}" | tail -1
+
+          echo "Waiting for Qdrant at $QDRANT_URL ..."
+          for i in $(seq 1 30); do
+            curl -sf "$QDRANT_URL/" > /dev/null && break
+            sleep 10
+          done
+
+          uv run --frozen --package llamaindex-doc-qa-lab python labs/${{ inputs.lab }}/scripts/seed_data.py --recreate
+
+      - name: Run HTTP smoke test (lab 09)
+        if: startsWith(inputs.lab, '09-')
+        uses: ./.github/actions/run-smoke-test
+        with:
+          lab: ${{ inputs.lab }}
+          base_url: https://${{ needs.deploy.outputs.fqdn }}
 
   hold:
     name: Hold for manual validation

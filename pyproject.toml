@@ -36,6 +36,16 @@ members = [
   "labs/*",
 ]
 
+[tool.uv.sources]
+# sentence-transformers (labs 07, 09) pulls in torch; these labs never run on
+# a GPU, so pin the CPU-only wheel instead of the default CUDA build (~2GB smaller).
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

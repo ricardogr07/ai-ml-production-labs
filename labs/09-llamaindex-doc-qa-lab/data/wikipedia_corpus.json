@@ -1,0 +1,122 @@
+[
+  {
+    "id": "doc-01",
+    "title": "Mount Everest",
+    "content": "Mount Everest is the highest mountain on Earth above sea level. It lies in the Mahalangur Himal sub-range of the Himalayas and marks part of the China–Nepal border at its summit. Its height was most recently measured in 2020 through a joint survey by Nepalese and Chinese authorities as 8,848.86 m.",
+    "category": "geography"
+  },
+  {
+    "id": "doc-02",
+    "title": "Amazon rainforest",
+    "content": "The Amazon rainforest, also called the Amazon jungle, Amazonia, or simply the Amazon, is a moist broadleaf tropical rainforest in the Amazon biome that covers most of the Amazon basin of South America. This basin encompasses 7 million km2 (2.7 million sq mi), of which 6 million km2 (2.3 million sq mi) are covered by the rainforest. This region includes territory belonging to nine nations and 3,344 indigenous territories.",
+    "category": "geography"
+  },
+  {
+    "id": "doc-03",
+    "title": "Sahara",
+    "content": "The Sahara is a desert spanning North Africa. With an area of 9,200,000 square kilometres (3,600,000 sq mi), it is the largest hot desert in the world and the third-largest desert overall, smaller only than the deserts of Antarctica and the northern Arctic.",
+    "category": "geography"
+  },
+  {
+    "id": "doc-04",
+    "title": "Great Barrier Reef",
+    "content": "The Great Barrier Reef is the world's largest coral reef system, composed of over 2,900 individual reefs and 900 islands stretching for over 2,300 kilometres (1,400 mi) over an area of approximately 344,400 square kilometres (133,000 mi2). The reef is located in the Coral Sea, off the coast of Queensland, Australia, separated from the coast by a channel 160 kilometres (100 mi) wide in places and over 61 metres (200 ft) deep. The Great Barrier Reef can be seen from outer space and is the world's biggest single structure made by living organisms. This reef structure is composed of and built by billions of tiny organisms, known as coral polyps. It supports a wide diversity of life and was selected as a World Heritage Site in 1981. CNN labelled it one of the Seven Natural Wonders of the World in 1997. Australian World Heritage places included it in its list in 2007. The Queensland National Trust named it a state icon of Queensland in 2006.",
+    "category": "geography"
+  },
+  {
+    "id": "doc-05",
+    "title": "Nile",
+    "content": "The Nile is a major north-flowing river in northeast Africa which empties into the Mediterranean Sea. At 7,088 kilometers (4,404 mi) long, it is the longest river in the world, although the volume of water it carries is much smaller than other major rivers such as the Amazon or the Congo. The Nile has played a central role in the environmental, economic, and cultural history of Africa for millennia.",
+    "category": "geography"
+  },
+  {
+    "id": "doc-06",
+    "title": "Internet",
+    "content": "The Internet is the global system of interconnected computer networks that uses the Internet protocol suite (TCP/IP) to communicate between networks and devices. It is a network of networks that comprises private, public, academic, business, and government networks of local to global scope, linked by electronic, wireless, and optical networking technologies. The Internet carries a vast range of information services and resources, such as the interlinked hypertext documents and applications of the World Wide Web (WWW), electronic mail, discussion groups, internet telephony, streaming media and file sharing.",
+    "category": "technology"
+  },
+  {
+    "id": "doc-07",
+    "title": "Semiconductor",
+    "content": "A semiconductor is a material with electrical conductivity between that of a conductor and an insulator. Its conductivity can be modified by adding impurities (\"doping\") to its crystal structure. When two regions with different doping levels are present in the same crystal, they form a semiconductor junction. The term \"semiconductors\" is sometimes used to refer to semiconductor devices such as microchips and computer processors, which work using the physical properties of semiconductors.",
+    "category": "technology"
+  },
+  {
+    "id": "doc-08",
+    "title": "Robotics",
+    "content": "Robotics is the interdisciplinary study and practice of the design, construction, operation, and use of robots. A roboticist is someone who specializes in robotics. Robotics usually combines four aspects of design work: a power source, mechanical construction, a control system, and software.",
+    "category": "technology"
+  },
+  {
+    "id": "doc-09",
+    "title": "Blockchain",
+    "content": "A blockchain is a distributed ledger with growing lists of records (blocks) that are securely linked together via cryptographic hashes. Each block contains a cryptographic hash of the previous block, a timestamp, and transaction data. Since each block contains information about the previous block, they effectively form a chain, with each additional block linking to the ones before it. Consequently, blockchain transactions are resistant to alteration because, once recorded, the data in any given block cannot be changed retroactively without altering all subsequent blocks and obtaining network consensus to accept these changes.",
+    "category": "technology"
+  },
+  {
+    "id": "doc-10",
+    "title": "Quantum computing",
+    "content": "A quantum computer is a real or theoretical computer that exploits quantum phenomena like superposition and entanglement in an essential way. It is widely believed that a quantum computer could perform some calculations exponentially faster than any classical computer. For example, a large-scale quantum computer could break some widely used encryption schemes and aid physicists in performing physical simulations. However, current hardware implementations of quantum computation are largely experimental and only suitable for specialized tasks.",
+    "category": "technology"
+  },
+  {
+    "id": "doc-11",
+    "title": "DNA",
+    "content": "Deoxyribonucleic acid is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.",
+    "category": "biology"
+  },
+  {
+    "id": "doc-12",
+    "title": "Photosynthesis",
+    "content": "Photosynthesis is a system of biological processes by which photopigment-bearing autotrophic organisms, such as most plants, algae and cyanobacteria, convert light energy — typically from sunlight — into the chemical energy necessary to fuel their metabolism. The term photosynthesis usually refers to oxygenic photosynthesis, a process that releases oxygen as a byproduct of water splitting. Photosynthetic organisms store the converted chemical energy within the bonds of intracellular organic compounds, typically carbohydrates like sugars, starches, phytoglycogen and cellulose. When needing to use this stored energy, an organism's cells then metabolize the organic compounds through cellular respiration. Photosynthesis plays a critical role in producing and maintaining the oxygen content of the Earth's atmosphere, and it supplies most of the biological energy necessary for complex life on Earth.",
+    "category": "biology"
+  },
+  {
+    "id": "doc-13",
+    "title": "Immune system",
+    "content": "The immune system is a network of biological systems that protects an organism from diseases. It detects and responds to a wide variety of pathogens, such as viruses, bacteria, and parasites, as well as cancer cells and foreign objects, such as wood splinters—distinguishing them from the organism's own healthy tissue. Many species have two major subsystems of the immune system. The innate immune system provides a preconfigured response to broad groups of situations and stimuli. The adaptive immune system provides a tailored response to each stimulus by learning to recognize molecules it has previously encountered. Both use molecules and cells to perform their functions.",
+    "category": "biology"
+  },
+  {
+    "id": "doc-14",
+    "title": "Evolution",
+    "content": "Evolution is the change in the heritable characteristics of biological populations over successive generations. It occurs when evolutionary processes such as genetic drift and natural selection act on genetic variation, resulting in certain characteristics becoming more or less common within a population over successive generations. The process of evolution has given rise to biodiversity at every level of biological organisation.",
+    "category": "biology"
+  },
+  {
+    "id": "doc-15",
+    "title": "Cell (biology)",
+    "content": "The cell is the basic structural and functional unit of all forms of life or organisms. The term comes from the Latin word cellula meaning 'small room'. A biological cell basically consists of a semipermeable cell membrane enclosing cytoplasm that contains genetic material. Most cells are only visible under a microscope. Except for highly-differentiated cell types most cells are capable of replication, and protein synthesis. Some types of cell are motile. Cells emerged on Earth about four billion years ago.",
+    "category": "biology"
+  },
+  {
+    "id": "doc-16",
+    "title": "Stoicism",
+    "content": "Stoicism is a philosophical movement and practical guide to living, emphasizing daily self-discipline and moral improvement, which originated in the Hellenistic period of ancient Greece and proliferated well into the Roman Imperial period. The ancient Stoics believed that the universe operated according to reason, or logos, providing a unified account of the world, constructed from ideals of rational discourse, monistic physics, and naturalistic ethics. These ideals constitute virtue, which is necessary for the Stoic goal of 'living a well-reasoned life'.",
+    "category": "philosophy"
+  },
+  {
+    "id": "doc-17",
+    "title": "Existentialism",
+    "content": "Existentialism is a family of philosophical views and inquiry that explore the human individual's struggle to lead an authentic life despite the apparent absurdity or incomprehensibility of existence. In examining meaning, purpose, and value, existentialist thought often includes concepts such as existential crises, angst, courage, and freedom.",
+    "category": "philosophy"
+  },
+  {
+    "id": "doc-18",
+    "title": "Utilitarianism",
+    "content": "Utilitarianism is a family of theories in normative ethics that prescribe actions that maximize happiness and well-being for the affected individuals. In other words, utilitarian ideas encourage actions that lead to the greatest good for the greatest number. Although different varieties of utilitarianism admit different characterizations, the basic idea that underpins them all is, in some sense, to maximize utility, which is often defined in terms of well-being or related concepts. For instance, Jeremy Bentham, the founder of utilitarianism, described utility as the capacity of actions or objects to produce benefits, such as pleasure, happiness, and good, or to prevent harm, such as pain and unhappiness, to those affected.",
+    "category": "philosophy"
+  },
+  {
+    "id": "doc-19",
+    "title": "Socratic method",
+    "content": "The Socratic method is a form of argumentative dialogue in which an individual probes a conversation partner on a topic, using questions and clarifications, until the partner is pressed to come to a conclusion on their own, or else their reasoning breaks down and they are forced to admit ignorance. The method is also known as Socratic debate, the maieutic method, or the Socratic dialectic, and sometimes equated with the Greek term elenchus. Socratic dialogues between characters employing this method feature in many of the works of the ancient Greek philosopher Plato, where a fictionalized version of his real-life teacher Socrates debates or expounds upon various philosophical issues with a partner.",
+    "category": "philosophy"
+  },
+  {
+    "id": "doc-20",
+    "title": "Epistemology",
+    "content": "\n\nEpistemology is the branch of philosophy that examines the nature, origin, and limits of knowledge. Also called the theory of knowledge, it explores different types of knowledge, such as propositional knowledge about facts, practical knowledge in the form of skills, and knowledge by acquaintance as a familiarity through experience. Epistemologists study the concepts of belief, truth, and justification to understand the nature of knowledge. To discover how knowledge arises, they investigate sources of justification, such as perception, introspection, memory, reason, and testimony.",
+    "category": "philosophy"
+  }
+]
