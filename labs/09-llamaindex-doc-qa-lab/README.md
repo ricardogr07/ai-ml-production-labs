@@ -14,13 +14,15 @@ A containerized retrieval-augmented generation service using LlamaIndex: a Wikip
 
 ## Architecture
 
+See [docs/architecture.md](docs/architecture.md) for component and sequence diagrams.
+
 ```text
 data/wikipedia_corpus.json → scripts/seed_data.py → chunk + embed (HuggingFace) → Qdrant collection
 POST /query {question, top_k} → VectorStoreIndex.from_vector_store(Qdrant) → query engine
   (similarity_top_k = top_k, llm = Ollama | Anthropic) → answer + source chunks
 ```
 
-Three containers: `app` (FastAPI + LlamaIndex) depends on `ollama` (generation) and `qdrant` (retrieval). Embeddings always run locally via `sentence-transformers` (`all-MiniLM-L6-v2`, 384-dim), regardless of which LLM provider is generating the answer — Anthropic has no embeddings API, so embedding can never be provider-dependent.
+Three containers: `app` (FastAPI + LlamaIndex) depends on `ollama` (generation) and `qdrant` (retrieval). Embeddings always run locally via `sentence-transformers` (`all-MiniLM-L6-v2`, 384-dim), regardless of which LLM provider is generating the answer: Anthropic has no embeddings API, so embedding can never be provider-dependent.
 
 ## Provider tiers
 
@@ -76,7 +78,7 @@ Two CI surfaces exercise this lab:
   - CI waits for Ollama and Qdrant to become reachable, pulls `llama3.2`, seeds the corpus into the deployed Qdrant, then runs the HTTP smoke test against the deployed app
   - teardown always destroys all three resources, including after failed deploys
 
-The Ollama and Qdrant endpoints are public and unauthenticated for the minutes the run lasts, destroyed at the end of every run. Qdrant is additionally *writable* during that window (`seed_data.py` upserts into it) — see Production notes.
+The Ollama and Qdrant endpoints are public and unauthenticated for the minutes the run lasts, destroyed at the end of every run. Qdrant is additionally *writable* during that window (`seed_data.py` upserts into it), see Production notes.
 
 ## Production notes
 
@@ -86,6 +88,6 @@ The Ollama and Qdrant endpoints are public and unauthenticated for the minutes t
 
 ## Tradeoffs
 
-- Embeddings are always local (`sentence-transformers`), decoupling retrieval quality from which LLM provider is generating — but it also means embedding quality can't be upgraded by switching providers.
+- Embeddings are always local (`sentence-transformers`), decoupling retrieval quality from which LLM provider is generating, but it also means embedding quality can't be upgraded by switching providers.
 - Qdrant and Ollama are both required for every code path except the mocked `TestClient` tests; there's no in-memory fallback vector store.
 - `top_k` is the only retrieval knob exposed; no reranking or query expansion (see lab 07 for those strategies).
