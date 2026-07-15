@@ -35,19 +35,33 @@ def mock_qdrant_client():
 def test_get_vector_store_wires_settings(monkeypatch, mock_qdrant_client):
     mock_cls, _ = mock_qdrant_client
     monkeypatch.setattr(settings, "qdrant_url", "http://example:6333")
+    monkeypatch.setattr(settings, "qdrant_api_key", None)
     monkeypatch.setattr(settings, "qdrant_collection", "test-collection")
 
     store = vector_store.get_vector_store()
 
     assert isinstance(store, QdrantVectorStore)
     assert store.collection_name == "test-collection"
-    mock_cls.assert_called_once_with(url="http://example:6333")
+    mock_cls.assert_called_once_with(url="http://example:6333", api_key=None, timeout=None)
 
 
 @pytest.mark.unit
 @pytest.mark.usefixtures("mock_qdrant_client")
 def test_get_vector_store_is_cached():
     assert vector_store.get_vector_store() is vector_store.get_vector_store()
+
+
+@pytest.mark.unit
+def test_make_qdrant_client_threads_api_key(monkeypatch, mock_qdrant_client):
+    from pydantic import SecretStr
+
+    mock_cls, _ = mock_qdrant_client
+    monkeypatch.setattr(settings, "qdrant_url", "http://example:6333")
+    monkeypatch.setattr(settings, "qdrant_api_key", SecretStr("s3cret"))
+
+    vector_store.make_qdrant_client(timeout=5)
+
+    mock_cls.assert_called_once_with(url="http://example:6333", api_key="s3cret", timeout=5)
 
 
 @pytest.mark.unit

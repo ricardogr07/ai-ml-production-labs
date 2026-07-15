@@ -20,10 +20,19 @@ from qdrant_client import models as qmodels
 from llamaindex_doc_qa_lab.config import settings
 
 
+def make_qdrant_client(timeout: int | None = None) -> QdrantClient:
+    """Build a QdrantClient with the configured URL and optional API key. Every
+    Qdrant connection (store, seed, readiness) goes through here so auth is
+    threaded in one place; local compose is loopback and needs no key."""
+    api_key = settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None
+    return QdrantClient(url=settings.qdrant_url, api_key=api_key, timeout=timeout)
+
+
 @lru_cache(maxsize=1)
 def get_vector_store() -> QdrantVectorStore:
-    client = QdrantClient(url=settings.qdrant_url)
-    return QdrantVectorStore(client=client, collection_name=settings.qdrant_collection)
+    return QdrantVectorStore(
+        client=make_qdrant_client(), collection_name=settings.qdrant_collection
+    )
 
 
 def named_vector(client: QdrantClient, collection: str) -> qmodels.VectorParams | None:

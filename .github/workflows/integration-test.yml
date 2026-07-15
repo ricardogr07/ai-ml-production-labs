@@ -173,6 +173,11 @@ jobs:
       TF_VAR_mcp_auth_token: ${{ secrets.MCP_AUTH_TOKEN }}
       TF_VAR_ollama_base_url: "http://placeholder:11434"
       TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Lab 09 only (ignored by other labs' configs): authenticated Docker Hub
+      # pulls for the ACI images. The Qdrant key is generated per run below, not
+      # a stored secret, so a leaked run's key dies with its torn-down Qdrant.
+      TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+      TF_VAR_dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -345,6 +350,20 @@ jobs:
             echo "Account not found, apply will create it"
           fi
 
+      # Per-run Qdrant API key: generated here, consumed by terraform apply
+      # (TF_VAR) and the same-job seed step below. Not a stored secret, so a
+      # leaked run's key is useless once its Qdrant is torn down. Teardown does
+      # not need it (the tf var defaults to empty for destroy).
+      - name: Generate per-run Qdrant API key (lab 09)
+        id: qdrant_key
+        if: startsWith(inputs.lab, '09-')
+        shell: bash
+        run: |
+          KEY=$(openssl rand -hex 32)
+          echo "::add-mask::$KEY"
+          echo "TF_VAR_qdrant_api_key=$KEY" >> "$GITHUB_ENV"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+
       - name: Apply
         id: apply
         uses: ./.github/actions/terraform-apply
@@ -381,6 +400,50 @@ jobs:
           QDRANT=$(terraform output -raw qdrant_fqdn 2>/dev/null || echo "")
           echo "ollama_fqdn=${OLLAMA}" >> "$GITHUB_OUTPUT"
           echo "qdrant_fqdn=${QDRANT}" >> "$GITHUB_OUTPUT"
+
+      # Seed here, in the deploy job, so the per-run Qdrant key stays a same-job
+      # step output (masked secrets passed as cross-job outputs are unreliable).
+      - name: Set up uv (lab 09 seed)
+        if: startsWith(inputs.lab, '09-')
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python (lab 09 seed)
+        if: startsWith(inputs.lab, '09-')
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install dependencies (lab 09 seed)
+        if: startsWith(inputs.lab, '09-')
+        run: uv sync --frozen --all-packages
+
+      - name: Wait for Ollama/Qdrant and seed the corpus (lab 09)
+        if: startsWith(inputs.lab, '09-')
+        env:
+          OLLAMA_BASE_URL: http://${{ steps.lab09_outputs.outputs.ollama_fqdn }}:11434
+          QDRANT_URL: http://${{ steps.lab09_outputs.outputs.qdrant_fqdn }}:6333
+          QDRANT_API_KEY: ${{ steps.qdrant_key.outputs.key }}
+          OLLAMA_MODEL: llama3.2
+        run: |
+          echo "Waiting for Ollama API at $OLLAMA_BASE_URL ..."
+          for i in $(seq 1 30); do
+            curl -sf "$OLLAMA_BASE_URL/api/tags" > /dev/null && break
+            sleep 10
+          done
+
+          echo "Pulling $OLLAMA_MODEL ..."
+          curl -sf "$OLLAMA_BASE_URL/api/pull" -d "{\"name\": \"$OLLAMA_MODEL\"}" | tail -1
+
+          # /readyz is exempt from Qdrant's API-key auth, so it needs no key here.
+          echo "Waiting for Qdrant at $QDRANT_URL ..."
+          for i in $(seq 1 30); do
+            curl -sf "$QDRANT_URL/readyz" > /dev/null && break
+            sleep 10
+          done
+
+          uv run --frozen --package llamaindex-doc-qa-lab python labs/${{ inputs.lab }}/scripts/seed_data.py --recreate
 
       - name: Capture Cosmos outputs (labs 04/06)
         if: startsWith(inputs.lab, '04-') || startsWith(inputs.lab, '06-')
@@ -622,54 +685,8 @@ jobs:
 
           uv run pytest labs/${{ inputs.lab }} -v -m integration
 
-      - name: Azure login (lab 09)
-        if: startsWith(inputs.lab, '09-')
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set up uv (lab 09)
-        if: startsWith(inputs.lab, '09-')
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Set up Python (lab 09)
-        if: startsWith(inputs.lab, '09-')
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
-
-      - name: Install dependencies (lab 09)
-        if: startsWith(inputs.lab, '09-')
-        run: uv sync --frozen --all-packages
-
-      - name: Wait for Ollama/Qdrant and seed the corpus (lab 09)
-        if: startsWith(inputs.lab, '09-')
-        env:
-          OLLAMA_BASE_URL: http://${{ needs.deploy.outputs.ollama_fqdn }}:11434
-          QDRANT_URL: http://${{ needs.deploy.outputs.qdrant_fqdn }}:6333
-          OLLAMA_MODEL: llama3.2
-        run: |
-          echo "Waiting for Ollama API at $OLLAMA_BASE_URL ..."
-          for i in $(seq 1 30); do
-            curl -sf "$OLLAMA_BASE_URL/api/tags" > /dev/null && break
-            sleep 10
-          done
-
-          echo "Pulling $OLLAMA_MODEL ..."
-          curl -sf "$OLLAMA_BASE_URL/api/pull" -d "{\"name\": \"$OLLAMA_MODEL\"}" | tail -1
-
-          echo "Waiting for Qdrant at $QDRANT_URL ..."
-          for i in $(seq 1 30); do
-            curl -sf "$QDRANT_URL/" > /dev/null && break
-            sleep 10
-          done
-
-          uv run --frozen --package llamaindex-doc-qa-lab python labs/${{ inputs.lab }}/scripts/seed_data.py --recreate
-
+      # Lab 09 seeding moved to the deploy job (per-run Qdrant key stays same-job);
+      # the deployed Qdrant is already seeded by the time this smoke test runs.
       - name: Run HTTP smoke test (lab 09)
         if: startsWith(inputs.lab, '09-')
         uses: ./.github/actions/run-smoke-test
