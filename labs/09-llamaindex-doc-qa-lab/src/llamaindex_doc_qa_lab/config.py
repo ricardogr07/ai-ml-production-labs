@@ -22,6 +22,7 @@ class Settings(BaseLabSettings):
     anthropic_api_key: SecretStr | None = None
 
     qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: SecretStr | None = None
     qdrant_collection: str = "wikipedia-docs"
     embedding_model_name: str = "all-MiniLM-L6-v2"
 

@@ -14,9 +14,9 @@ from llamaindex_doc_qa_lab.errors import NotReadyError
 
 @pytest.fixture()
 def mock_qdrant():
-    with patch("llamaindex_doc_qa_lab.readiness.QdrantClient") as cls:
+    with patch("llamaindex_doc_qa_lab.readiness.vector_store.make_qdrant_client") as factory:
         instance = MagicMock()
-        cls.return_value = instance
+        factory.return_value = instance
         yield instance
 
 
