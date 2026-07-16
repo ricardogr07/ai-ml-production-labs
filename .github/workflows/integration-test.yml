@@ -178,6 +178,10 @@ jobs:
       # a stored secret, so a leaked run's key dies with its torn-down Qdrant.
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
       TF_VAR_dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+      # The lab's documented default is llama3.2 (3B), but that overruns the 8GB
+      # Ollama ACI at model load; the deploy test uses the 1B variant, which fits
+      # and still exercises the full retrieve-and-generate loop.
+      TF_VAR_ollama_model: llama3.2:1b
     steps:
       - uses: actions/checkout@v4
 
@@ -425,7 +429,8 @@ jobs:
           OLLAMA_BASE_URL: http://${{ steps.lab09_outputs.outputs.ollama_fqdn }}:11434
           QDRANT_URL: http://${{ steps.lab09_outputs.outputs.qdrant_fqdn }}:6333
           QDRANT_API_KEY: ${{ steps.qdrant_key.outputs.key }}
-          OLLAMA_MODEL: llama3.2
+          # Fits the 8GB Ollama ACI; matches the app's OLLAMA_MODEL (TF_VAR_ollama_model).
+          OLLAMA_MODEL: llama3.2:1b
         run: |
           echo "Waiting for Ollama API at $OLLAMA_BASE_URL ..."
           for i in $(seq 1 30); do
