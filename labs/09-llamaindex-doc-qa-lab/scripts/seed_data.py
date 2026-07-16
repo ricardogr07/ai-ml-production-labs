@@ -43,7 +43,9 @@ def main() -> int:
 
     embed_model = embeddings.get_embedding_model()
     dim = embeddings.embedding_dim()
-    client = vector_store.make_qdrant_client()
+    # Generous timeout: a just-deployed (cold) remote Qdrant can take longer than
+    # the qdrant-client default (httpx 5s) to answer its first request.
+    client = vector_store.make_qdrant_client(timeout=60)
 
     # Create the collection with the named "text-dense" vector (or validate an
     # existing one, failing fast on a mismatched schema); see vector_store.
