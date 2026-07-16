@@ -42,7 +42,7 @@ def test_get_vector_store_wires_settings(monkeypatch, mock_qdrant_client):
 
     assert isinstance(store, QdrantVectorStore)
     assert store.collection_name == "test-collection"
-    mock_cls.assert_called_once_with(url="http://example:6333", api_key=None, timeout=None)
+    mock_cls.assert_called_once_with(url="http://example:6333", api_key=None, timeout=30)
 
 
 @pytest.mark.unit

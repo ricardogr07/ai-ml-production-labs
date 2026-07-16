@@ -30,8 +30,10 @@ def make_qdrant_client(timeout: int | None = None) -> QdrantClient:
 
 @lru_cache(maxsize=1)
 def get_vector_store() -> QdrantVectorStore:
+    # 30s (over the qdrant-client httpx 5s default): the first query after a
+    # scale-to-zero cold start hits a possibly-cold remote Qdrant.
     return QdrantVectorStore(
-        client=make_qdrant_client(), collection_name=settings.qdrant_collection
+        client=make_qdrant_client(timeout=30), collection_name=settings.qdrant_collection
     )
 
 
