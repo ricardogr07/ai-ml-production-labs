@@ -17,7 +17,7 @@ Classical ML engineering end-to-end: synthetic dataset generation, model trainin
 ```text
 train.py → synthetic dataset → RandomForestClassifier → MLflow artifact
                                                               ↓
-                                    FastAPI /predict → model.predict() → SeverityResponse
+                                    FastAPI /predict → model.predict_proba() → SeverityResponse
 ```
 
 ## Run locally
@@ -28,8 +28,8 @@ uv sync
 # Train and log to MLflow
 uv run --package mlflow-classifier-api python labs/10-mlflow-classifier-api/scripts/train.py
 
-# Inspect runs
-uv run mlflow ui
+# Inspect runs (MLflow 3 defaults to sqlite; point the UI at the lab's file store)
+MLFLOW_ALLOW_FILE_STORE=true uv run mlflow ui --backend-store-uri ./mlruns
 
 # Start API (after training)
 uv run --package mlflow-classifier-api uvicorn mlflow_classifier_api.app:app --reload
@@ -45,4 +45,4 @@ uv run --package mlflow-classifier-api pytest labs/10-mlflow-classifier-api/test
 
 - Synthetic dataset: real incident data would be confidential. The synthetic generator preserves the feature engineering pattern.
 - No model registry in the scaffold; `mlflow.sklearn.log_model` is enough to demonstrate the tracking pattern.
-- Model is loaded at startup from the latest MLflow run; production would pin a specific run ID.
+- Model is loaded lazily on first use from the latest finished MLflow run and cached for the process, so an empty tracking store returns an actionable 503 instead of crashing startup. Production would pin a specific run; `MODEL_URI` provides that override.

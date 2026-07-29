@@ -3,15 +3,24 @@
 
 from __future__ import annotations
 
+import os
+
 import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
+from mlflow_classifier_api.config import settings
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
 LABELS = ["low", "medium", "high", "critical"]
+
+# MLflow 3.14 hard-errors on the ./mlruns file store (maintenance mode) unless
+# this is set; the lab is local-first so we allow it. setdefault: an explicit
+# operator value wins. The store is built lazily on the first client call, so
+# setting this before main() runs is early enough.
+os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
 
 
 def generate_synthetic_data(n: int = 500) -> pd.DataFrame:
@@ -33,6 +42,11 @@ def generate_synthetic_data(n: int = 500) -> pd.DataFrame:
 
 
 def main() -> None:
+    # Log to the same store the API serves from. Without this, MLflow 3.14's
+    # new default (sqlite:///mlflow.db) silently splits train from serve.
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    # Same experiment the API's latest-run lookup is scoped to.
+    mlflow.set_experiment(settings.mlflow_experiment)
     df = generate_synthetic_data()
     features = df.drop("severity", axis=1)
     y = df["severity"]
@@ -49,7 +63,14 @@ def main() -> None:
         report = classification_report(y_test, preds, output_dict=True)
         mlflow.log_metric("accuracy", report["accuracy"])
 
-        mlflow.sklearn.log_model(model, "severity_classifier")
+        # cloudpickle, not the 3.14 skops default: skops import scans
+        # sys.modules and breaks when transformers is loaded without
+        # torchvision (as in this repo's CPU-only test env).
+        mlflow.sklearn.log_model(
+            model,
+            "severity_classifier",
+            serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
+        )
         print(classification_report(y_test, preds))
 
 
