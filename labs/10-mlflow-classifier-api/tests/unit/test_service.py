@@ -11,6 +11,7 @@ from mlflow_classifier_api.config import settings
 from mlflow_classifier_api.errors import ModelNotReady
 from mlflow_classifier_api.schemas import IncidentFeatures
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import LinearSVC
 
 _CRITICAL_INCIDENT = IncidentFeatures(
     service_name="auth-service",
@@ -41,6 +42,7 @@ def test_load_model_rejects_feature_mismatch(tmp_path, monkeypatch: pytest.Monke
     actionable message, not silently mis-predict on reordered features."""
     tracking_dir = (tmp_path / "mlruns").as_uri()
     mlflow.set_tracking_uri(tracking_dir)
+    mlflow.set_experiment(settings.mlflow_experiment)
     wrong = pd.DataFrame([[1, 2], [3, 4]], columns=["a", "b"])
     model = RandomForestClassifier(n_estimators=1, random_state=0)
     model.fit(wrong, ["low", "high"])
@@ -65,6 +67,7 @@ def test_load_model_rejects_labels_outside_contract(
     rejected at load with an actionable message, not 500 at predict time."""
     tracking_dir = (tmp_path / "mlruns").as_uri()
     mlflow.set_tracking_uri(tracking_dir)
+    mlflow.set_experiment(settings.mlflow_experiment)
     frame = pd.DataFrame([[1, 2.0, 3, 0], [4, 5.0, 6, 1]], columns=service.FEATURE_COLUMNS)
     model = RandomForestClassifier(n_estimators=1, random_state=0)
     model.fit(frame, ["low", "catastrophic"])
@@ -78,6 +81,62 @@ def test_load_model_rejects_labels_outside_contract(
     monkeypatch.setattr(settings, "model_uri", None)
 
     with pytest.raises(ModelNotReady, match="catastrophic"):
+        service.load_model()
+
+
+@pytest.mark.unit
+def test_load_model_failure_hides_tracking_uri(
+    trained_mlruns: tuple[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Load failures must not echo the tracking URI (it may carry credentials)
+    or the raw MLflow error into the client-facing 503 message."""
+    tracking_dir, _run_id = trained_mlruns
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_dir)
+    monkeypatch.setattr(settings, "model_uri", "runs:/no-such-run/severity_classifier")
+
+    with pytest.raises(ModelNotReady) as excinfo:
+        service.load_model()
+    assert tracking_dir not in str(excinfo.value)
+    assert "server logs" in str(excinfo.value)
+
+
+@pytest.mark.unit
+def test_load_model_ignores_newer_run_in_other_experiment(
+    ready_settings: str,
+) -> None:
+    """A newer finished run in an unrelated experiment must not shadow the
+    classifier: the latest-run lookup is scoped to the configured experiment."""
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    mlflow.set_experiment("unrelated-experiment")
+    with mlflow.start_run():
+        pass  # finished run, newer than the classifier's, no artifact
+
+    _model, version = service.load_model()
+    assert version == ready_settings
+
+
+@pytest.mark.unit
+def test_load_model_rejects_model_without_predict_proba(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A classifier without predict_proba must fail readiness at load, not 500
+    on the first /predict."""
+    tracking_dir = (tmp_path / "mlruns").as_uri()
+    mlflow.set_tracking_uri(tracking_dir)
+    mlflow.set_experiment(settings.mlflow_experiment)
+    frame = pd.DataFrame([[1, 2.0, 3, 0], [4, 5.0, 6, 1]], columns=service.FEATURE_COLUMNS)
+    model = LinearSVC()
+    model.fit(frame, ["low", "high"])
+    with mlflow.start_run():
+        mlflow.sklearn.log_model(
+            model,
+            "severity_classifier",
+            serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
+        )
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_dir)
+    monkeypatch.setattr(settings, "model_uri", None)
+
+    with pytest.raises(ModelNotReady, match="predict_proba"):
         service.load_model()
 
 

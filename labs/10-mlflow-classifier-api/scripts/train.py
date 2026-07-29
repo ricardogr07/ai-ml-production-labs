@@ -45,6 +45,8 @@ def main() -> None:
     # Log to the same store the API serves from. Without this, MLflow 3.14's
     # new default (sqlite:///mlflow.db) silently splits train from serve.
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    # Same experiment the API's latest-run lookup is scoped to.
+    mlflow.set_experiment(settings.mlflow_experiment)
     df = generate_synthetic_data()
     features = df.drop("severity", axis=1)
     y = df["severity"]

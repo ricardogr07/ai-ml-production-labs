@@ -37,6 +37,8 @@ def trained_mlruns(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, str]:
     # experiment when it creates the root itself (same as train.py's ./mlruns).
     tracking_dir = (tmp_path_factory.mktemp("lab10") / "mlruns").as_uri()
     mlflow.set_tracking_uri(tracking_dir)
+    # Same experiment the service's latest-run lookup is scoped to.
+    mlflow.set_experiment(settings.mlflow_experiment)
     frame = pd.DataFrame(
         [
             [0, 50.0, 0, 0],

@@ -7,6 +7,7 @@ IncidentFeatures to a SeverityResponse via predict_proba.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 from typing import Any, cast
@@ -42,6 +43,8 @@ os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
 _MODEL_CACHE: tuple[Any, str] | None = None
 _LOAD_LOCK = threading.Lock()
 
+logger = logging.getLogger(__name__)
+
 
 def load_model() -> tuple[Any, str]:
     """Return the cached (model, version), loading it single-flight on first use.
@@ -75,11 +78,20 @@ def _resolve_and_load() -> tuple[Any, str]:
         if settings.model_uri:
             uri = version = settings.model_uri
         else:
+            # Experiment name, never the tracking URI: ModelNotReady messages
+            # go to unauthenticated callers and the URI may carry credentials.
+            no_runs = (
+                f"No finished runs in MLflow experiment {settings.mlflow_experiment!r}; "
+                "run scripts/train.py first."
+            )
+            experiment = mlflow.get_experiment_by_name(settings.mlflow_experiment)
+            if experiment is None:
+                raise ModelNotReady(no_runs)
             # cast: mlflow's stubs mistype the "list" output's Run entities
             runs = cast(
                 "list[Any]",
                 mlflow.search_runs(
-                    search_all_experiments=True,
+                    experiment_ids=[experiment.experiment_id],
                     filter_string="attributes.status = 'FINISHED'",
                     order_by=["attributes.start_time DESC"],
                     max_results=1,
@@ -87,18 +99,19 @@ def _resolve_and_load() -> tuple[Any, str]:
                 ),
             )
             if not runs:
-                raise ModelNotReady(
-                    f"No finished MLflow runs at {settings.mlflow_tracking_uri!r}; "
-                    "run scripts/train.py first."
-                )
+                raise ModelNotReady(no_runs)
             version = runs[0].info.run_id
             uri = f"runs:/{version}/{_ARTIFACT_NAME}"
         model = mlflow.sklearn.load_model(uri)
     except ModelNotReady:
         raise
     except Exception as exc:  # any MLflow/store fault means not ready, never a 500
+        # Full cause (which may embed the credentialed tracking URI) stays in
+        # server logs; the client-facing message never carries either.
+        logger.exception("Model load failed")
         raise ModelNotReady(
-            f"Failed to load model from {settings.mlflow_tracking_uri!r}: {exc}"
+            "Failed to load the serving model from the tracking store; "
+            "see server logs for the cause."
         ) from exc
 
     trained_columns = getattr(model, "feature_names_in_", None)
@@ -112,6 +125,11 @@ def _resolve_and_load() -> tuple[Any, str]:
         raise ModelNotReady(
             f"Model predicts labels {sorted(unknown_labels)} outside the API contract "
             f"{sorted(_VALID_LABELS)}; retrain with scripts/train.py."
+        )
+    if not callable(getattr(model, "predict_proba", None)):
+        raise ModelNotReady(
+            "Model artifact does not implement predict_proba, which /predict "
+            "requires; retrain with scripts/train.py."
         )
     return model, version
 
