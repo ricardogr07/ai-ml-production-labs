@@ -15,6 +15,8 @@ import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
+from mlflow.exceptions import MlflowException
+from mlflow.tracking import MlflowClient
 
 from mlflow_classifier_api.config import settings
 from mlflow_classifier_api.errors import ModelNotReady
@@ -60,40 +62,74 @@ def reset_model_cache() -> None:
         _MODEL_CACHE = None
 
 
+def _resolve_alias() -> tuple[str, str]:
+    """Return the (uri, version) the serving alias points at.
+
+    Raises ModelNotReady when the registry entry or the alias is absent, which
+    is the state before the first scripts/train.py run.
+    """
+    client = MlflowClient()
+    # Registry name and alias, never the tracking URI: ModelNotReady messages go
+    # to unauthenticated callers and the URI may carry credentials.
+    try:
+        version = client.get_model_version_by_alias(
+            settings.registered_model_name, settings.model_alias
+        ).version
+    except MlflowException as exc:
+        raise ModelNotReady(
+            f"No model registered as {settings.registered_model_name!r} with alias "
+            f"{settings.model_alias!r}; run scripts/train.py first."
+        ) from exc
+    return f"models:/{settings.registered_model_name}@{settings.model_alias}", str(version)
+
+
+def _resolve_latest_run() -> tuple[str, str]:
+    """Return the (uri, run_id) of the newest finished run in the experiment.
+
+    Fallback for a tracking store written before the registry existed; the
+    alias path is what the lab serves normally.
+    """
+    no_runs = (
+        f"No finished runs in MLflow experiment {settings.mlflow_experiment!r}; "
+        "run scripts/train.py first."
+    )
+    experiment = mlflow.get_experiment_by_name(settings.mlflow_experiment)
+    if experiment is None:
+        raise ModelNotReady(no_runs)
+    # cast: mlflow's stubs mistype the "list" output's Run entities
+    runs = cast(
+        "list[Any]",
+        mlflow.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            filter_string="attributes.status = 'FINISHED'",
+            order_by=["attributes.start_time DESC"],
+            max_results=1,
+            output_format="list",
+        ),
+    )
+    if not runs:
+        raise ModelNotReady(no_runs)
+    run_id = runs[0].info.run_id
+    return f"runs:/{run_id}/{_ARTIFACT_NAME}", run_id
+
+
 def _resolve_and_load() -> tuple[Any, str]:
-    """Resolve the serving model URI, load it, and sanity-check the artifact."""
-    # ponytail: serves the latest finished run, no version pinning; the ceiling
-    # is reproducibility across retrains. Pin via MODEL_URI when it matters;
-    # registry-backed pinning is the W2 upgrade path.
+    """Resolve the serving model URI, load it, and sanity-check the artifact.
+
+    Resolution order: the MODEL_URI pin, then the registry alias, then the
+    latest finished run. The fallback keeps a store trained before the registry
+    existed servable; MODEL_URI stays the explicit escape hatch for pinning an
+    exact version.
+    """
     try:
         mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
         if settings.model_uri:
             uri = version = settings.model_uri
         else:
-            # Experiment name, never the tracking URI: ModelNotReady messages
-            # go to unauthenticated callers and the URI may carry credentials.
-            no_runs = (
-                f"No finished runs in MLflow experiment {settings.mlflow_experiment!r}; "
-                "run scripts/train.py first."
-            )
-            experiment = mlflow.get_experiment_by_name(settings.mlflow_experiment)
-            if experiment is None:
-                raise ModelNotReady(no_runs)
-            # cast: mlflow's stubs mistype the "list" output's Run entities
-            runs = cast(
-                "list[Any]",
-                mlflow.search_runs(
-                    experiment_ids=[experiment.experiment_id],
-                    filter_string="attributes.status = 'FINISHED'",
-                    order_by=["attributes.start_time DESC"],
-                    max_results=1,
-                    output_format="list",
-                ),
-            )
-            if not runs:
-                raise ModelNotReady(no_runs)
-            version = runs[0].info.run_id
-            uri = f"runs:/{version}/{_ARTIFACT_NAME}"
+            try:
+                uri, version = _resolve_alias()
+            except ModelNotReady:
+                uri, version = _resolve_latest_run()
         model = mlflow.sklearn.load_model(uri)
     except ModelNotReady:
         raise
