@@ -8,7 +8,6 @@ IncidentFeatures to a SeverityResponse via predict_proba.
 from __future__ import annotations
 
 import logging
-import os
 import threading
 from typing import Any, cast
 
@@ -32,13 +31,6 @@ FEATURE_COLUMNS = ["error_count", "latency_p95_ms", "failed_jobs", "deployment_r
 _VALID_LABELS = {"low", "medium", "high", "critical"}
 
 _ARTIFACT_NAME = "severity_classifier"
-
-# ponytail: MLflow 3.14 hard-errors on the ./mlruns file store (maintenance
-# mode) unless this is set; the lab is local-first so we allow it. Ceiling is
-# MLflow dropping the file store entirely; upgrade path is a sqlite backend
-# (W2). setdefault, so an operator's explicit value wins. The store is built
-# lazily on first client call, so setting this at import time is early enough.
-os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
 
 _MODEL_CACHE: tuple[Any, str] | None = None
 _LOAD_LOCK = threading.Lock()

@@ -25,11 +25,11 @@ train.py → synthetic dataset → RandomForestClassifier → MLflow artifact
 ```bash
 uv sync
 
-# Train and log to MLflow
+# Train and log to MLflow (metadata in ./mlflow.db, artifacts under ./mlruns)
 uv run --package mlflow-classifier-api python labs/10-mlflow-classifier-api/scripts/train.py
 
-# Inspect runs (MLflow 3 defaults to sqlite; point the UI at the lab's file store)
-MLFLOW_ALLOW_FILE_STORE=true uv run mlflow ui --backend-store-uri ./mlruns
+# Inspect runs
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 # Start API (after training)
 uv run --package mlflow-classifier-api uvicorn mlflow_classifier_api.app:app --reload
