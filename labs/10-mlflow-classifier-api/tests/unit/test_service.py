@@ -1,6 +1,8 @@
-"""Unit tests for model resolution and inference against a real tmp mlruns."""
+"""Unit tests for model resolution and inference against a real tmp sqlite store."""
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 import mlflow
 import mlflow.sklearn
@@ -37,12 +39,12 @@ def test_load_model_empty_store_raises_model_not_ready() -> None:
 
 
 @pytest.mark.unit
-def test_load_model_rejects_feature_mismatch(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_model_rejects_feature_mismatch(
+    tracking_store: Callable[[], str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A model trained on different columns must fail loading with an
     actionable message, not silently mis-predict on reordered features."""
-    tracking_dir = (tmp_path / "mlruns").as_uri()
-    mlflow.set_tracking_uri(tracking_dir)
-    mlflow.set_experiment(settings.mlflow_experiment)
+    tracking_uri = tracking_store()
     wrong = pd.DataFrame([[1, 2], [3, 4]], columns=["a", "b"])
     model = RandomForestClassifier(n_estimators=1, random_state=0)
     model.fit(wrong, ["low", "high"])
@@ -52,7 +54,7 @@ def test_load_model_rejects_feature_mismatch(tmp_path, monkeypatch: pytest.Monke
             "severity_classifier",
             serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
         )
-    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_dir)
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
     monkeypatch.setattr(settings, "model_uri", None)
 
     with pytest.raises(ModelNotReady, match="retrain"):
@@ -61,13 +63,11 @@ def test_load_model_rejects_feature_mismatch(tmp_path, monkeypatch: pytest.Monke
 
 @pytest.mark.unit
 def test_load_model_rejects_labels_outside_contract(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+    tracking_store: Callable[[], str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """An artifact predicting labels the API contract does not know must be
     rejected at load with an actionable message, not 500 at predict time."""
-    tracking_dir = (tmp_path / "mlruns").as_uri()
-    mlflow.set_tracking_uri(tracking_dir)
-    mlflow.set_experiment(settings.mlflow_experiment)
+    tracking_uri = tracking_store()
     frame = pd.DataFrame([[1, 2.0, 3, 0], [4, 5.0, 6, 1]], columns=service.FEATURE_COLUMNS)
     model = RandomForestClassifier(n_estimators=1, random_state=0)
     model.fit(frame, ["low", "catastrophic"])
@@ -77,7 +77,7 @@ def test_load_model_rejects_labels_outside_contract(
             "severity_classifier",
             serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
         )
-    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_dir)
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
     monkeypatch.setattr(settings, "model_uri", None)
 
     with pytest.raises(ModelNotReady, match="catastrophic"):
@@ -90,13 +90,13 @@ def test_load_model_failure_hides_tracking_uri(
 ) -> None:
     """Load failures must not echo the tracking URI (it may carry credentials)
     or the raw MLflow error into the client-facing 503 message."""
-    tracking_dir, _run_id = trained_mlruns
-    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_dir)
+    tracking_uri, _run_id = trained_mlruns
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
     monkeypatch.setattr(settings, "model_uri", "runs:/no-such-run/severity_classifier")
 
     with pytest.raises(ModelNotReady) as excinfo:
         service.load_model()
-    assert tracking_dir not in str(excinfo.value)
+    assert tracking_uri not in str(excinfo.value)
     assert "server logs" in str(excinfo.value)
 
 
@@ -117,13 +117,11 @@ def test_load_model_ignores_newer_run_in_other_experiment(
 
 @pytest.mark.unit
 def test_load_model_rejects_model_without_predict_proba(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+    tracking_store: Callable[[], str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A classifier without predict_proba must fail readiness at load, not 500
     on the first /predict."""
-    tracking_dir = (tmp_path / "mlruns").as_uri()
-    mlflow.set_tracking_uri(tracking_dir)
-    mlflow.set_experiment(settings.mlflow_experiment)
+    tracking_uri = tracking_store()
     frame = pd.DataFrame([[1, 2.0, 3, 0], [4, 5.0, 6, 1]], columns=service.FEATURE_COLUMNS)
     model = LinearSVC()
     model.fit(frame, ["low", "high"])
@@ -133,7 +131,7 @@ def test_load_model_rejects_model_without_predict_proba(
             "severity_classifier",
             serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
         )
-    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_dir)
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
     monkeypatch.setattr(settings, "model_uri", None)
 
     with pytest.raises(ModelNotReady, match="predict_proba"):
@@ -144,9 +142,9 @@ def test_load_model_rejects_model_without_predict_proba(
 def test_load_model_honors_model_uri_override(
     trained_mlruns: tuple[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    tracking_dir, run_id = trained_mlruns
+    tracking_uri, run_id = trained_mlruns
     pinned = f"runs:/{run_id}/severity_classifier"
-    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_dir)
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
     monkeypatch.setattr(settings, "model_uri", pinned)
     _model, version = service.load_model()
     assert version == pinned

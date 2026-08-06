@@ -16,7 +16,10 @@ class Settings(BaseLabSettings):
         env_file=(".env", _LAB_ENV), extra="ignore", protected_namespaces=()
     )
 
-    mlflow_tracking_uri: str = "./mlruns"
+    # sqlite, not a file store: MLflow put the file store in maintenance mode
+    # in 3.14, and the model registry the serving path uses needs a DB backend.
+    # CWD-relative, so run train.py and uvicorn from the same directory.
+    mlflow_tracking_uri: str = "sqlite:///mlflow.db"
     # Training and serving share this experiment; the latest-run lookup is
     # scoped to it, so a newer run from an unrelated experiment is never served.
     mlflow_experiment: str = "severity-classifier"
