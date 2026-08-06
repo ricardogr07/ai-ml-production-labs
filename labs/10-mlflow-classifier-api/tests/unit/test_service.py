@@ -25,10 +25,38 @@ _CRITICAL_INCIDENT = IncidentFeatures(
 
 
 @pytest.mark.unit
-def test_load_model_resolves_latest_run(ready_settings: str) -> None:
+def test_load_model_resolves_registry_alias(ready_settings: str) -> None:
+    """The default serving path is the alias, and the reported version is the
+    registry version number, not a run id."""
     model, version = service.load_model()
     assert version == ready_settings
+    assert version.isdigit()
     assert list(model.feature_names_in_) == service.FEATURE_COLUMNS
+
+
+@pytest.mark.unit
+def test_load_model_falls_back_to_latest_run_when_alias_missing(
+    unregistered_settings: str,
+) -> None:
+    """A store written before the registry existed still serves: no alias, so
+    resolution falls back to the newest finished run."""
+    _model, version = service.load_model()
+    assert version == unregistered_settings
+
+
+@pytest.mark.unit
+def test_load_model_missing_alias_and_no_runs_raises_model_not_ready(
+    tracking_store: Callable[[], str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Neither an alias nor a finished run: the 503 must name train.py and must
+    not leak the tracking URI."""
+    tracking_uri = tracking_store()
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
+    monkeypatch.setattr(settings, "model_uri", None)
+
+    with pytest.raises(ModelNotReady, match=r"run scripts/train\.py") as excinfo:
+        service.load_model()
+    assert tracking_uri not in str(excinfo.value)
 
 
 @pytest.mark.unit
@@ -86,11 +114,11 @@ def test_load_model_rejects_labels_outside_contract(
 
 @pytest.mark.unit
 def test_load_model_failure_hides_tracking_uri(
-    trained_mlruns: tuple[str, str], monkeypatch: pytest.MonkeyPatch
+    trained_mlruns: tuple[str, str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Load failures must not echo the tracking URI (it may carry credentials)
     or the raw MLflow error into the client-facing 503 message."""
-    tracking_uri, _run_id = trained_mlruns
+    tracking_uri, _run_id, _version = trained_mlruns
     monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
     monkeypatch.setattr(settings, "model_uri", "runs:/no-such-run/severity_classifier")
 
@@ -101,18 +129,18 @@ def test_load_model_failure_hides_tracking_uri(
 
 
 @pytest.mark.unit
-def test_load_model_ignores_newer_run_in_other_experiment(
-    ready_settings: str,
+def test_fallback_ignores_newer_run_in_other_experiment(
+    unregistered_settings: str,
 ) -> None:
     """A newer finished run in an unrelated experiment must not shadow the
-    classifier: the latest-run lookup is scoped to the configured experiment."""
+    classifier: the fallback lookup is scoped to the configured experiment."""
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
     mlflow.set_experiment("unrelated-experiment")
     with mlflow.start_run():
         pass  # finished run, newer than the classifier's, no artifact
 
     _model, version = service.load_model()
-    assert version == ready_settings
+    assert version == unregistered_settings
 
 
 @pytest.mark.unit
@@ -140,9 +168,10 @@ def test_load_model_rejects_model_without_predict_proba(
 
 @pytest.mark.unit
 def test_load_model_honors_model_uri_override(
-    trained_mlruns: tuple[str, str], monkeypatch: pytest.MonkeyPatch
+    trained_mlruns: tuple[str, str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    tracking_uri, run_id = trained_mlruns
+    """MODEL_URI wins over the alias: the explicit pin is the escape hatch."""
+    tracking_uri, run_id, _version = trained_mlruns
     pinned = f"runs:/{run_id}/severity_classifier"
     monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
     monkeypatch.setattr(settings, "model_uri", pinned)

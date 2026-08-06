@@ -15,8 +15,8 @@ Classical ML engineering end-to-end: synthetic dataset generation, model trainin
 ## Architecture
 
 ```text
-train.py → synthetic dataset → RandomForestClassifier → MLflow artifact
-                                                              ↓
+train.py → synthetic dataset → RandomForestClassifier → registered version → champion alias
+                                                                                   ↓
                                     FastAPI /predict → model.predict_proba() → SeverityResponse
 ```
 
@@ -44,5 +44,5 @@ uv run --package mlflow-classifier-api pytest labs/10-mlflow-classifier-api/test
 ## Tradeoffs
 
 - Synthetic dataset: real incident data would be confidential. The synthetic generator preserves the feature engineering pattern.
-- No model registry in the scaffold; `mlflow.sklearn.log_model` is enough to demonstrate the tracking pattern.
-- Model is loaded lazily on first use from the latest finished MLflow run and cached for the process, so an empty tracking store returns an actionable 503 instead of crashing startup. Production would pin a specific run; `MODEL_URI` provides that override.
+- Training promotes unconditionally: every run moves the `champion` alias to the version it just registered. A real pipeline would gate promotion on the eval metric beating the incumbent, which this lab cannot demonstrate on a fixed seed.
+- Model is loaded lazily on first use and cached for the process, so an empty tracking store returns an actionable 503 instead of crashing startup. Resolution order is `MODEL_URI`, then the registry alias, then the latest finished run; the last is a fallback for stores written before the registry existed.

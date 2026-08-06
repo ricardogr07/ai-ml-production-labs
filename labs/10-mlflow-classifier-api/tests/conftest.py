@@ -13,6 +13,7 @@ import mlflow
 import mlflow.sklearn
 import pandas as pd
 import pytest
+from mlflow.tracking import MlflowClient
 from mlflow_classifier_api import service
 from mlflow_classifier_api.config import settings
 from mlflow_classifier_api.service import FEATURE_COLUMNS
@@ -64,12 +65,8 @@ def _fresh_model_cache() -> Iterator[None]:
     service.reset_model_cache()
 
 
-@pytest.fixture(scope="session")
-def trained_mlruns(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, str]:
-    """Train a tiny classifier into a fresh sqlite store; returns (uri, run_id)."""
-    root = tmp_path_factory.mktemp("lab10")
-    # Same experiment the service's latest-run lookup is scoped to.
-    tracking_uri = _make_tracking_store(root, settings.mlflow_experiment)
+def _log_tiny_model(register: bool) -> str:
+    """Log a four-label classifier into the current store; returns its run_id."""
     frame = pd.DataFrame(
         [
             [0, 50.0, 0, 0],
@@ -92,14 +89,49 @@ def trained_mlruns(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, str]:
             model,
             "severity_classifier",
             serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
+            registered_model_name=settings.registered_model_name if register else None,
         )
-    return tracking_uri, run.info.run_id
+    return run.info.run_id
+
+
+@pytest.fixture(scope="session")
+def trained_mlruns(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, str, str]:
+    """Train a tiny classifier into a fresh sqlite store, registered and aliased.
+
+    Mirrors what scripts/train.py leaves behind, so the serving path resolves
+    through the registry exactly as it does in production. Returns
+    (tracking_uri, run_id, registry_version).
+    """
+    root = tmp_path_factory.mktemp("lab10")
+    tracking_uri = _make_tracking_store(root, settings.mlflow_experiment)
+    run_id = _log_tiny_model(register=True)
+    client = MlflowClient()
+    version = max(
+        client.search_model_versions(f"name = '{settings.registered_model_name}'"),
+        key=lambda candidate: int(candidate.version),
+    ).version
+    client.set_registered_model_alias(settings.registered_model_name, settings.model_alias, version)
+    return tracking_uri, run_id, str(version)
 
 
 @pytest.fixture()
-def ready_settings(trained_mlruns: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> str:
-    """Point the service at the trained store; returns the expected run_id."""
-    tracking_uri, run_id = trained_mlruns
+def ready_settings(trained_mlruns: tuple[str, str, str], monkeypatch: pytest.MonkeyPatch) -> str:
+    """Point the service at the registered store; returns the served version."""
+    tracking_uri, _run_id, version = trained_mlruns
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
+    monkeypatch.setattr(settings, "model_uri", None)
+    return version
+
+
+@pytest.fixture()
+def unregistered_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    """A store holding a logged but unregistered model; returns its run_id.
+
+    This is what a tracking store written before the registry existed looks
+    like, and the state the latest-finished-run fallback exists to serve.
+    """
+    tracking_uri = _make_tracking_store(tmp_path / "unregistered", settings.mlflow_experiment)
+    run_id = _log_tiny_model(register=False)
     monkeypatch.setattr(settings, "mlflow_tracking_uri", tracking_uri)
     monkeypatch.setattr(settings, "model_uri", None)
     return run_id

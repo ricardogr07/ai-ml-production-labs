@@ -7,6 +7,7 @@ import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
+from mlflow.tracking import MlflowClient
 from mlflow_classifier_api.config import settings
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
@@ -62,8 +63,29 @@ def main() -> None:
             model,
             "severity_classifier",
             serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
+            registered_model_name=settings.registered_model_name,
         )
+        promote_latest_version()
         print(classification_report(y_test, preds))
+
+
+def promote_latest_version() -> None:
+    """Point the serving alias at the version this run just registered.
+
+    The API resolves models:/<name>@<alias>, so moving the alias is what makes
+    a newly trained model live. Promotion is unconditional here because the
+    lab trains on a fixed seed; a real pipeline would gate it on the eval
+    metric beating the incumbent.
+    """
+    client = MlflowClient()
+    latest = max(
+        client.search_model_versions(f"name = '{settings.registered_model_name}'"),
+        key=lambda version: int(version.version),
+    )
+    client.set_registered_model_alias(
+        settings.registered_model_name, settings.model_alias, latest.version
+    )
+    print(f"Alias {settings.model_alias!r} now points at version {latest.version}.")
 
 
 if __name__ == "__main__":
