@@ -66,6 +66,19 @@ docker compose run --rm train  # /ready 200 on the next request, no restart
 docker compose down -v
 ```
 
+## Verify a running instance
+
+`smoke_test.py` checks a deployed or containerized instance end to end:
+`/health`, `/ready`, a valid `/predict`, and a rejected one.
+
+```bash
+uv run --package mlflow-classifier-api \
+  python labs/10-mlflow-classifier-api/scripts/smoke_test.py http://localhost:8000
+```
+
+It exits non-zero on the first failed assertion. Set `HEALTH_ONLY=1` to check
+only `/health` when the instance has no trained model yet.
+
 ## Test
 
 ```bash
