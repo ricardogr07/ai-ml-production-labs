@@ -53,6 +53,19 @@ untrained behavior back (`/ready` and `/predict` return 503):
 docker run --rm -p 8000:8000 -e MLFLOW_TRACKING_URI=sqlite:////tmp/empty.db mlflow-classifier-api
 ```
 
+## Compose
+
+The compose stack takes the mounted-store path instead: a named volume holds
+the tracking DB and the artifact tree, and training is a one-off service.
+
+```bash
+cd labs/10-mlflow-classifier-api
+
+docker compose up -d --build   # /health 200, /ready 503 (no runs yet)
+docker compose run --rm train  # /ready 200 on the next request, no restart
+docker compose down -v
+```
+
 ## Test
 
 ```bash
