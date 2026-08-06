@@ -20,6 +20,8 @@ train.py → synthetic dataset → RandomForestClassifier → registered version
                                     FastAPI /predict → model.predict_proba() → SeverityResponse
 ```
 
+See [docs/architecture.md](docs/architecture.md) for component and sequence diagrams.
+
 ## Run locally
 
 ```bash
