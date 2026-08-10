@@ -1,0 +1,50 @@
+services:
+  app:
+    build: &build
+      context: ../..
+      dockerfile: labs/10-mlflow-classifier-api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment: &store
+      # Both the sqlite metadata file and the artifact tree have to sit inside
+      # the one volume. With a DB backend MLflow writes artifacts to
+      # <cwd>/mlruns/<experiment_id>, so pointing the DB anywhere else would
+      # share run metadata with the train service but not the model files, and
+      # the API would 503 on a run that trained successfully.
+      - MLFLOW_TRACKING_URI=sqlite:///mlruns/mlflow.db
+    # Seeded from the image on purpose, not nocopy: the container runs as
+    # non-root and Docker only copies ownership onto a fresh named volume when
+    # it seeds it. With nocopy the mountpoint stays root-owned and training
+    # dies on "unable to open database file". Seeding carries over the baked
+    # artifacts but not the DB (the image keeps it at /app/mlflow.db), so the
+    # volume still starts with no runs and /ready still 503s until train runs.
+    volumes: &mount
+      - mlflow_store:/app/mlruns
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # One-off: `docker compose run --rm train`. Behind a profile so `up` does not
+  # start it, and sharing the app's store so a fresh train goes live on the
+  # next request with no restart: the API caches a loaded model but never
+  # caches a load failure, so a container that has only ever 503'd re-resolves
+  # the champion alias on the following request.
+  train:
+    profiles: ["train"]
+    build: *build
+    environment: *store
+    volumes: *mount
+    command:
+      - uv
+      - run
+      - --frozen
+      - --package
+      - mlflow-classifier-api
+      - python
+      - labs/10-mlflow-classifier-api/scripts/train.py
+
+volumes:
+  mlflow_store:
