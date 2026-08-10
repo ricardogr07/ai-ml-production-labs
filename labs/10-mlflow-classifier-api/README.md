@@ -24,6 +24,10 @@ See [docs/architecture.md](docs/architecture.md) for component and sequence diag
 
 ## Run locally
 
+All three commands run from the repo root. The tracking URI is relative, so
+training and serving from different directories gives you a successful train
+and a permanent 503.
+
 ```bash
 uv sync
 
@@ -71,9 +75,12 @@ docker compose down -v
 ## Verify a running instance
 
 `smoke_test.py` checks a deployed or containerized instance end to end:
-`/health`, `/ready`, a valid `/predict`, and a rejected one.
+`/health`, `/ready`, a valid `/predict`, and a rejected one. Run it from the
+repo root (the compose block above leaves you in the lab directory):
 
 ```bash
+cd ../..
+
 uv run --package mlflow-classifier-api \
   python labs/10-mlflow-classifier-api/scripts/smoke_test.py http://localhost:8000
 ```
