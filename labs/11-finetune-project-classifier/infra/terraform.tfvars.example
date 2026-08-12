@@ -1,0 +1,5 @@
+resource_group_name = "rg-ai-ml-production-labs-dev"
+location = "eastus"
+container_app_name = "ca-finetune-project-classifier-dev"
+container_image = "ghcr.io/<github-username>/finetune-project-classifier:latest"
+environment_name = "cae-ai-ml-production-labs-dev"
