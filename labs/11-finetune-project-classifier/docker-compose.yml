@@ -1,3 +1,6 @@
+volumes:
+  project-classifier-artifacts:
+
 services:
   app:
     build:
@@ -5,6 +8,8 @@ services:
       dockerfile: labs/11-finetune-project-classifier/Dockerfile
     ports:
       - "8000:8000"
+    volumes:
+      - project-classifier-artifacts:/app/artifacts/project-classifier
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/health"]
       interval: 5s
@@ -17,3 +22,5 @@ services:
       context: ../..
       dockerfile: labs/11-finetune-project-classifier/Dockerfile
     command: ["uv", "run", "--frozen", "--package", "finetune-project-classifier", "python", "labs/11-finetune-project-classifier/scripts/finetune.py"]
+    volumes:
+      - project-classifier-artifacts:/app/artifacts/project-classifier

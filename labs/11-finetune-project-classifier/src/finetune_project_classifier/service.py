@@ -29,11 +29,24 @@ def load_model() -> tuple[Any, Any, str]:
                     )
                 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-                _cache = (
-                    AutoTokenizer.from_pretrained(settings.model_dir),
-                    AutoModelForSequenceClassification.from_pretrained(settings.model_dir),
-                    "local",
-                )
+                try:
+                    _cache = (
+                        AutoTokenizer.from_pretrained(
+                            settings.model_dir,
+                            revision=settings.base_model_revision,
+                            local_files_only=True,
+                        ),
+                        AutoModelForSequenceClassification.from_pretrained(
+                            settings.model_dir,
+                            revision=settings.base_model_revision,
+                            local_files_only=True,
+                        ),
+                        "local",
+                    )
+                except Exception as exc:
+                    raise ModelNotReadyError(
+                        f"Fine-tuned model at {settings.model_dir} is incomplete or invalid."
+                    ) from exc
     return _cache
 
 

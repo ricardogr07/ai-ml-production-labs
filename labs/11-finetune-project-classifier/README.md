@@ -34,7 +34,7 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -
 docker compose up --build
 ```
 
-The image trains the sample dataset during build, then starts the API on port `8000`. Run `docker compose run --rm train` to retrain into the mounted model volume.
+The image trains the sample dataset during build, then starts the API on port `8000`. Run `docker compose run --rm train` to retrain into the mounted model volume. Restart `app` after retraining if it has already loaded the previous model: `docker compose restart app`.
 
 ## Tests and quality
 

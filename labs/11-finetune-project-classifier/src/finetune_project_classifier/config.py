@@ -11,6 +11,7 @@ class Settings(BaseLabSettings):
     )
     model_dir: Path = Path("artifacts/project-classifier")
     base_model: str = "distilbert-base-uncased"
+    base_model_revision: str = "12040accade4e8a0f71eabdb258fecc2e7e948be"
 
 
 settings = Settings()

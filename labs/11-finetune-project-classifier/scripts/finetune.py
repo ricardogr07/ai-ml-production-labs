@@ -19,7 +19,9 @@ def main() -> None:
     train_texts, test_texts, train_labels, test_labels = train_test_split(
         texts, labels, test_size=0.33, random_state=42, stratify=labels
     )
-    tokenizer = AutoTokenizer.from_pretrained(settings.base_model)
+    tokenizer = AutoTokenizer.from_pretrained(
+        settings.base_model, revision=settings.base_model_revision
+    )
 
     def encode(row):
         return tokenizer(row["text"], truncation=True, max_length=128)
@@ -32,6 +34,7 @@ def main() -> None:
     ).map(encode, batched=True)
     model = AutoModelForSequenceClassification.from_pretrained(
         settings.base_model,
+        revision=settings.base_model_revision,
         num_labels=len(LABELS),
         id2label=dict(enumerate(LABELS)),
         label2id=LABEL_TO_ID,
