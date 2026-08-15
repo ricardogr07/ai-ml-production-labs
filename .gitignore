@@ -63,6 +63,9 @@ mlruns/
 mlartifacts/
 mlflow.db
 
+# Trained model output (lab 11)
+/artifacts/
+
 # Jupyter
 .ipynb_checkpoints/
 notebooks/

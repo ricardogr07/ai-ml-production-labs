@@ -2,39 +2,48 @@
 
 ## What this proves
 
-Fine-tuning as a measurable adaptation strategy: take a small pretrained HuggingFace model, establish a baseline accuracy on a labeled dataset, fine-tune it, and show the before/after metric comparison. The domain is project type classification.
+A small Hugging Face classifier fine-tuned on labeled project descriptions, evaluated, saved locally, and served through FastAPI.
 
 ## Scope
 
-- Capability: Fine-tune `distilbert-base-uncased` for 6-class project type classification
 - Input: project description text
-- Output: predicted label from `{cloud_api, ml_model, rag_system, agent_system, data_pipeline, observability}`
-- Deployment target: local (GPU optional; runs on CPU with small dataset)
-- Non-goals: production serving, model registry, real-world dataset
-
-## Architecture
-
-```text
-labeled_dataset → baseline_eval (zero-shot) → baseline_accuracy
-               → fine_tune (Trainer API) → fine_tuned_accuracy
-               → before/after comparison table
-```
+- Output: one of `cloud_api`, `ml_model`, `rag_system`, `agent_system`, `data_pipeline`, `observability`
+- Model: `distilbert-base-uncased`
+- Target: local CPU or GPU
+- Non-goals: registry, production data, online training
 
 ## Run locally
 
 ```bash
 uv sync
 uv run --package finetune-project-classifier python labs/11-finetune-project-classifier/scripts/finetune.py
+uv run --package finetune-project-classifier uvicorn finetune_project_classifier.app:app --app-dir labs/11-finetune-project-classifier/src --reload
 ```
 
-## Test
+Training writes `artifacts/project-classifier` and `metrics.json`. The first run downloads the base model.
+
+## API
+
+```bash
+curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{"description":"A FastAPI service with OpenAPI and health checks"}'
+```
+
+## Docker Compose
+
+```bash
+docker compose up --build
+```
+
+The image trains the sample dataset during build, then starts the API on port `8000`. Run `docker compose run --rm train` to retrain into the mounted model volume. Restart `app` after retraining if it has already loaded the previous model: `docker compose restart app`.
+
+## Tests and quality
 
 ```bash
 uv run --package finetune-project-classifier pytest labs/11-finetune-project-classifier/tests
+ruff check labs/11-finetune-project-classifier
+pyrefly check labs/11-finetune-project-classifier/src
 ```
 
 ## Tradeoffs
 
-- Tiny synthetic dataset (18 samples): enough to show the fine-tuning pattern; real improvement requires hundreds of examples per class.
-- CPU training is slow for transformers; use a GPU or Google Colab for real experiments.
-- `distilbert-base-uncased` is the right size: small enough to train on CPU, large enough to demonstrate adaptation.
+The dataset has 18 synthetic examples. It demonstrates the workflow, not production accuracy. Real use needs a larger labeled corpus, held-out evaluation, model versioning, and monitoring.
