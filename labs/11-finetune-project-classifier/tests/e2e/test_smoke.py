@@ -12,18 +12,15 @@ Validates that:
 from __future__ import annotations
 
 import json
-import subprocess
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-
 from finetune_project_classifier.app import app
 from finetune_project_classifier.config import settings
 from finetune_project_classifier.dataset import LABELS, SAMPLES
 from finetune_project_classifier.errors import ModelNotReadyError
 from finetune_project_classifier.readiness import readiness
-from finetune_project_classifier.service import load_model, predict, reset_model_cache
+from finetune_project_classifier.service import load_model, reset_model_cache
 
 
 @pytest.mark.integration
@@ -45,10 +42,14 @@ def test_finetune_to_predict_smoke() -> None:
     model_dir = settings.model_dir
 
     # Assertion 1: Artifacts exist and have expected files
-    assert model_dir.exists(), f"Model directory not found at {model_dir}; run scripts/finetune.py first."
+    assert model_dir.exists(), (
+        f"Model directory not found at {model_dir}; run scripts/finetune.py first."
+    )
     assert (model_dir / "config.json").exists(), "config.json missing"
     # Model saved as safetensors or pytorch_model.bin (both valid)
-    has_model = (model_dir / "model.safetensors").exists() or (model_dir / "pytorch_model.bin").exists()
+    has_model = (model_dir / "model.safetensors").exists() or (
+        model_dir / "pytorch_model.bin"
+    ).exists()
     assert has_model, "model.safetensors or pytorch_model.bin missing"
     assert (model_dir / "tokenizer.json").exists(), "tokenizer.json missing"
 
@@ -128,14 +129,10 @@ def test_finetune_to_predict_smoke() -> None:
 
     confidence = pred_data["confidence"]
     assert isinstance(confidence, float), f"confidence should be float, got {type(confidence)}"
-    assert 0.0 <= confidence <= 1.0, (
-        f"confidence {confidence} out of valid range [0.0, 1.0]"
-    )
+    assert 0.0 <= confidence <= 1.0, f"confidence {confidence} out of valid range [0.0, 1.0]"
 
     model_version = pred_data["model_version"]
-    assert model_version == "local", (
-        f"model_version expected 'local', got '{model_version}'"
-    )
+    assert model_version == "local", f"model_version expected 'local', got '{model_version}'"
 
     # Clean up: reset cache for subsequent tests
     reset_model_cache()
